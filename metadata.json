@@ -1,5 +1,5 @@
 {
   "name": "AI Pulse",
-  "description": "An intelligent AI news and content automation assistant that discovers the latest AI news and automatically creates engaging, high-quality posts for LinkedIn and Medium.",
+  "description": "An intelligent assistant that automatically summarizes the latest AI trends and generates ready-to-publish posts for LinkedIn and Medium.",
   "requestFramePermissions": []
 }

@@ -1,112 +1,133 @@
-
-import React, { useState, useCallback } from 'react';
-import { PostCard } from './components/PostCard';
+import React, { useState, useEffect, useCallback } from 'react';
+import { LogoIcon, RefreshIcon } from './components/icons';
 import { LoadingState } from './components/LoadingState';
-import { LogoIcon, PlayIcon, RefreshIcon } from './components/icons';
-import { generateContentFromPrompt } from './services/geminiService';
-import { NewsItem } from './types';
+import { ArticleCard } from './components/ArticleCard';
+import { Modal } from './components/Modal';
+import { PostCard } from './components/PostCard';
+import { Footer } from './components/Footer';
+import { generateArticles, generateSocialPost } from './services/geminiService';
+import { Article, LinkedInPost, MediumArticle } from './types';
+
+type SocialPlatform = 'LinkedIn' | 'Medium';
 
 function App() {
-  const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [isLoadingArticles, setIsLoadingArticles] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState<string>('');
 
-  const handleGenerate = useCallback(async (prompt: string) => {
-    setIsLoading(true);
-    setError(null);
-    setNewsItems([]);
-    setStatusMessage('Initializing AI Pulse...');
-
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [isGeneratingPost, setIsGeneratingPost] = useState<boolean>(false);
+  const [generatedPost, setGeneratedPost] = useState<LinkedInPost | MediumArticle | null>(null);
+  const [modalPlatform, setModalPlatform] = useState<SocialPlatform | null>(null);
+  
+  const fetchArticles = useCallback(async () => {
     try {
-      const results = await generateContentFromPrompt(prompt, setStatusMessage);
-      setNewsItems(results);
+      setError(null);
+      setIsLoadingArticles(true);
+      const articleContent = await generateArticles();
+      setArticles(articleContent);
     } catch (err) {
+      setError(err instanceof Error ? err.message : 'An unknown error occurred.');
+      setArticles([]);
       console.error(err);
-      setError(err instanceof Error ? err.message : 'An unknown error occurred. Please check the console.');
     } finally {
-      setIsLoading(false);
-      setStatusMessage('');
+      setIsLoadingArticles(false);
     }
   }, []);
-  
-  const handleStart = () => {
-    handleGenerate("Summarize today's most important AI news and updates.");
+
+  useEffect(() => {
+    fetchArticles();
+  }, [fetchArticles]);
+
+  const handleGeneratePost = async (articleContent: string, platform: SocialPlatform) => {
+    setModalPlatform(platform);
+    setIsModalOpen(true);
+    setIsGeneratingPost(true);
+    setGeneratedPost(null);
+
+    try {
+      const postContent = await generateSocialPost(articleContent, platform);
+      setGeneratedPost(postContent);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to generate post.';
+      setGeneratedPost({
+        title: `Error Generating ${platform} Post`,
+        body: errorMessage,
+        takeaway: "Please try again.",
+        headline: `Error Generating ${platform} Post`,
+        hashtags: [],
+      });
+      console.error(err);
+    } finally {
+      setIsGeneratingPost(false);
+    }
   };
 
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setGeneratedPost(null);
+    setModalPlatform(null);
+  };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 flex flex-col">
-      <header className="p-4 border-b border-gray-700/50 flex items-center justify-center space-x-3">
-        <LogoIcon className="h-8 w-8 text-cyan-400" />
-        <div>
-          <h1 className="text-2xl font-bold text-white">AI Pulse</h1>
-          <p className="text-sm text-gray-400">Your Automated AI News & Content Assistant</p>
+    <div className="min-h-screen bg-black text-gray-100 flex flex-col">
+      <header className="p-4 border-b border-gray-800/50 flex items-center justify-between sticky top-0 bg-black/80 backdrop-blur-sm z-10">
+        <div className="flex items-center space-x-3">
+          <LogoIcon className="h-8 w-8 text-cyan-400" />
+          <div>
+            <h1 className="text-2xl font-bold text-white">AI Pulse</h1>
+            <p className="text-sm text-gray-400">Your Automated AI Content Assistant</p>
+          </div>
         </div>
+        <button
+          onClick={fetchArticles}
+          disabled={isLoadingArticles}
+          className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/30 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 focus:ring-offset-black"
+          title="Refresh Feed"
+        >
+          <RefreshIcon className={`h-5 w-5 mr-2 ${isLoadingArticles ? 'animate-spin' : ''}`} />
+          <span>Refresh Feed</span>
+        </button>
       </header>
       
-      <main className="flex-grow container mx-auto p-4 md:p-6 lg:p-8 w-full flex flex-col items-center">
-        {isLoading && <div className="flex-grow flex items-center justify-center"><LoadingState message={statusMessage} /></div>}
+      <main className="flex-grow container mx-auto p-4 md:p-6 lg:p-8 w-full">
+        {isLoadingArticles && (
+          <div className="flex-grow flex items-center justify-center pt-24">
+            <LoadingState message="Scanning for the latest AI trends..." />
+          </div>
+        )}
         
-        {error && (
-          <div className="flex-grow flex items-center justify-center">
-            <div className="bg-red-900/20 border border-red-500 text-red-300 p-4 rounded-lg text-center">
-              <h3 className="font-bold mb-2">Generation Failed</h3>
+        {error && !isLoadingArticles && (
+          <div className="flex-grow flex items-center justify-center pt-24">
+            <div className="bg-red-900/20 border border-red-500 text-red-300 p-4 rounded-lg text-center max-w-2xl mx-auto">
+              <h3 className="font-bold mb-2">Failed to Generate Report</h3>
               <p>{error}</p>
             </div>
           </div>
         )}
 
-        {!isLoading && !error && newsItems.length === 0 && (
-          <div className="flex-grow flex flex-col items-center justify-center text-center">
-            <LogoIcon className="h-16 w-16 text-cyan-400 mb-4" />
-            <h2 className="text-3xl font-bold text-white mb-2">Ready to Catch the AI Wave?</h2>
-            <p className="text-lg text-gray-400 mb-8 max-w-xl">
-              AI Pulse automatically finds the latest breakthroughs and drafts share-worthy posts for your social media.
-            </p>
-            <button
-              onClick={handleStart}
-              className="bg-cyan-500 hover:bg-cyan-400 text-white font-bold py-3 px-8 rounded-full text-lg transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-opacity-50"
-            >
-              <span className="flex items-center space-x-2">
-                <span>Start Pulse</span>
-                <PlayIcon className="w-6 h-6" />
-              </span>
-            </button>
-          </div>
-        )}
-
-        {!isLoading && newsItems.length > 0 && (
-          <div className="w-full">
-            <div className="flex justify-center mb-8">
-              <button
-                onClick={handleStart}
-                disabled={isLoading}
-                className="bg-cyan-600 hover:bg-cyan-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold py-2 px-6 rounded-full transition-colors duration-200 flex items-center space-x-2"
-                aria-label="Generate New AI Pulse Report"
-              >
-                <RefreshIcon className="w-5 h-5"/>
-                <span>Generate New Report</span>
-              </button>
-            </div>
-            <div className="grid grid-cols-1 gap-8 w-full">
-              {newsItems.map((item, index) => (
-                <div key={index} className="bg-gray-800/50 border border-gray-700 p-6 rounded-xl shadow-lg">
-                    <h2 className="text-xl font-bold mb-1 text-cyan-300">Topic: {item.source.title}</h2>
-                    <a href={item.source.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center space-x-2 text-sm text-gray-400 hover:text-cyan-400 transition-colors duration-200 mb-6">
-                        <span>{item.source.url}</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                    </a>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
-                        <PostCard platform="LinkedIn" content={item.linkedinPost} />
-                        <PostCard platform="Medium" content={item.mediumArticle} />
-                    </div>
-                </div>
-              ))}
-            </div>
+        {!isLoadingArticles && articles.length > 0 && (
+          <div className="grid gap-8 max-w-4xl mx-auto">
+            {articles.map((article, index) => (
+              <ArticleCard
+                key={index}
+                article={article}
+                onGenerate={handleGeneratePost}
+                isGenerating={isGeneratingPost}
+              />
+            ))}
           </div>
         )}
       </main>
+
+      <Footer />
+
+      <Modal isOpen={isModalOpen} onClose={closeModal}>
+        {isGeneratingPost && <LoadingState message={`Drafting ${modalPlatform} post...`} />}
+        {generatedPost && modalPlatform && (
+          <PostCard platform={modalPlatform} content={generatedPost} />
+        )}
+      </Modal>
     </div>
   );
 }

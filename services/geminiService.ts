@@ -1,102 +1,114 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
-import { NewsItem } from '../types';
-
-// The schema definitions are kept for documentation and clarity, but are not passed to the API call.
-const NEWS_ITEM_SCHEMA = {
-  type: Type.OBJECT,
-  properties: {
-    linkedinPost: {
-      type: Type.OBJECT,
-      properties: {
-        headline: { type: Type.STRING, description: "A catchy headline for the LinkedIn post." },
-        body: { type: Type.STRING, description: "The main content of the LinkedIn post, 3-5 sentences." },
-        hashtags: {
-          type: Type.ARRAY,
-          items: { type: Type.STRING },
-          description: "An array of 3-5 relevant hashtags, starting with #."
-        },
-      },
-      required: ['headline', 'body', 'hashtags'],
-    },
-    mediumArticle: {
-      type: Type.OBJECT,
-      properties: {
-        title: { type: Type.STRING, description: "A clear and engaging title for the Medium article." },
-        body: { type: Type.STRING, description: "The article body, 3-5 short paragraphs (approx. 250-400 words)." },
-        takeaway: { type: Type.STRING, description: "A concluding short takeaway or reflection." },
-      },
-      required: ['title', 'body', 'takeaway'],
-    },
-    source: {
-        type: Type.OBJECT,
-        properties: {
-            title: { type: Type.STRING, description: "The title of the original news source article." },
-            url: { type: Type.STRING, description: "The URL of the original news source." }
-        },
-        required: ['title', 'url'],
-    }
-  },
-  required: ['linkedinPost', 'mediumArticle', 'source'],
-};
+import { Article, LinkedInPost, MediumArticle } from '../types';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-export const generateContentFromPrompt = async (
-  prompt: string,
-  setStatus: (message: string) => void
-): Promise<NewsItem[]> => {
+/**
+ * Generates the main summary article about the latest AI trends.
+ */
+export const generateArticles = async (): Promise<Article[]> => {
   const systemInstruction = `
-    You are AI Pulse, an intelligent AI news and content automation assistant.
-    Your mission is to stay up-to-date with the latest developments in Artificial Intelligence and automatically create engaging, high-quality posts for LinkedIn and Medium.
-    Your workflow is as follows:
-    1. Use your knowledge and real-time data from Google Search to find the most recent and relevant news based on the user's prompt. For prompts like "today's updates" or "daily digest", find 3-5 trending topics. For "weekly report", analyze trends across several stories.
-    2. For each distinct news item found, analyze the content, extract the core innovation, and understand why it matters.
-    3. Generate two formatted versions of content for each news item: a LinkedIn Post and a Medium Article.
-    4. LinkedIn Post Requirements: A professional, engaging tone. Start with a hook/headline. Summarize the news in 3-5 sentences. End with a question or call-to-action. Include 3-5 relevant hashtags (e.g., #AI, #MachineLearning).
-    5. Medium Article Requirements: A clear title. Write 3-5 short paragraphs (approx. 250-400 words total). Use a balanced, human-like tone—informative but not robotic. Conclude with a short "Takeaway" or reflection.
-    6. Citation: You MUST find and include the original source URL and title for every single news item. Populate this in the 'source' object in the JSON. This is non-negotiable.
-    7. Final Output: Your entire response MUST be a single valid JSON array of news item objects. Do not include any other text, markdown formatting (like \`\`\`json), or introductory commentary outside of the JSON structure. The JSON structure should be: [{"linkedinPost": {"headline": "...", "body": "...", "hashtags": ["..."]}, "mediumArticle": {"title": "...", "body": "...", "takeaway": "..."}, "source": {"title": "...", "url": "..."}}]
+    You are AI Pulse, an expert AI journalist and content curator.
+    Your mission is to find the 4 most important, groundbreaking, and recent news articles in the world of Artificial Intelligence using Google Search.
+    
+    Your workflow for EACH of the 4 articles:
+    1.  Find a significant, distinct AI news story from the last 24-48 hours.
+    2.  Write a clear, compelling title for the story.
+    3.  Write a concise, 2-paragraph summary of the news in Markdown format.
+    4.  Find a URL for a high-quality, relevant, free-to-use stock image (e.g., from Unsplash, Pexels, Pixabay) that relates to the article's content.
+    5.  List the original source URLs you used for your research.
+
+    Your final output MUST be a single, valid JSON array containing exactly 4 objects. Do not include any other text, commentary, or markdown formatting around the JSON array.
+    Each object in the array must follow this exact structure:
+    {
+      "title": "The article title",
+      "body": "The 2-paragraph summary in Markdown format.",
+      "imageUrl": "The URL of the stock image.",
+      "sources": ["http://source-url-1.com", "http://source-url-2.com"]
+    }
   `;
-
-  setStatus('Searching for the latest AI news...');
   
-  const model = ai.models.generateContent;
-
-  const response = await model({
-      model: 'gemini-2.5-pro',
-      contents: prompt,
-      config: {
-          systemInstruction,
-          tools: [{ googleSearch: {} }],
-          thinkingConfig: { thinkingBudget: 32768 },
-          temperature: 0.5,
-      },
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-pro',
+    contents: "Find and summarize the 4 most important AI news stories from the last couple of days.",
+    config: {
+      systemInstruction,
+      tools: [{ googleSearch: {} }],
+      thinkingConfig: { thinkingBudget: 32768 },
+      temperature: 0.7,
+    },
   });
 
-  setStatus('Analyzing news and drafting posts...');
-  const rawText = response.text.trim();
-  let jsonText = rawText;
+  const jsonText = response.text.trim().replace(/```json|```/g, '');
 
-  // Handle cases where the response might be wrapped in markdown
-  if (jsonText.startsWith('```json')) {
-    jsonText = jsonText.substring(7, jsonText.length - 3).trim();
-  } else if (jsonText.startsWith('```')) {
-    jsonText = jsonText.substring(3, jsonText.length - 3).trim();
+  try {
+    return JSON.parse(jsonText);
+  } catch (e) {
+    console.error("Failed to parse articles JSON:", jsonText);
+    throw new Error(`The AI returned an invalid format for the articles feed.`);
   }
+};
+
+/**
+ * Generates a social media post based on the main article content.
+ */
+export const generateSocialPost = async (
+  articleContent: string,
+  platform: 'LinkedIn' | 'Medium'
+): Promise<LinkedInPost | MediumArticle> => {
+  const isLinkedIn = platform === 'LinkedIn';
+
+  const LINKEDIN_SCHEMA = {
+    type: Type.OBJECT,
+    properties: {
+      headline: { type: Type.STRING, description: "A professional, engaging headline for the post (max 150 characters)." },
+      body: { type: Type.STRING, description: "The main content of the post, summarizing the key points in 3-5 sentences." },
+      hashtags: { type: Type.ARRAY, items: { type: Type.STRING }, description: "An array of 3-5 relevant hashtags (e.g., '#AI')." },
+    },
+    required: ['headline', 'body', 'hashtags'],
+  };
+
+  const MEDIUM_SCHEMA = {
+    type: Type.OBJECT,
+    properties: {
+      title: { type: Type.STRING, description: "A clear and compelling title for the Medium article." },
+      body: { type: Type.STRING, description: "The full article body, written in an informative, human-like tone (3-5 short paragraphs)." },
+      takeaway: { type: Type.STRING, description: "A short, concluding 'Takeaway' or reflection." },
+    },
+    required: ['title', 'body', 'takeaway'],
+  };
+
+  const systemInstruction = `
+    You are a professional social media content creator.
+    Based on the provided article text, create a perfectly formatted ${platform} post.
+    Adhere strictly to the provided JSON schema for your response.
+    Your entire response MUST be a single valid JSON object matching the schema. Do not include any other text or markdown.
+  `;
+
+  const prompt = `
+    Here is the article to base your post on:
+    ---
+    ${articleContent}
+    ---
+    Now, generate the ${platform} post content.
+  `;
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: prompt,
+    config: {
+      systemInstruction,
+      responseMimeType: 'application/json',
+      responseSchema: isLinkedIn ? LINKEDIN_SCHEMA : MEDIUM_SCHEMA,
+    },
+  });
+  
+  const jsonText = response.text.trim();
   
   try {
-    const parsedResponse: NewsItem[] = JSON.parse(jsonText);
-    if (!Array.isArray(parsedResponse)) {
-      throw new Error("API response is not an array.");
-    }
-    // A quick validation of the first item's structure
-    if (parsedResponse.length > 0 && (!parsedResponse[0].linkedinPost || !parsedResponse[0].source)) {
-       throw new Error("Parsed JSON has an incorrect structure.");
-    }
-    return parsedResponse;
-  } catch(e) {
-    console.error("Failed to parse JSON response:", rawText);
-    throw new Error(`The AI returned an invalid format. Please try rephrasing your request. Details: ${(e as Error).message}`);
+    return JSON.parse(jsonText);
+  } catch (e) {
+    console.error("Failed to parse social post JSON:", jsonText);
+    throw new Error(`The AI returned an invalid format for the ${platform} post.`);
   }
 };

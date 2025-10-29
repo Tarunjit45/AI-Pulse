@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { LinkedInPost, MediumArticle } from '../types';
 import { LinkedInIcon, MediumIcon, CopyIcon } from './icons';
@@ -22,20 +21,17 @@ const CopyButton: React.FC<{ textToCopy: string }> = ({ textToCopy }) => {
   return (
     <button
       onClick={handleCopy}
-      className={`absolute top-4 right-4 p-2 rounded-full transition-colors duration-200 ${
+      title={copied ? "Copied!" : "Copy Post"}
+      className={`absolute top-4 right-4 p-2 rounded-full transition-all duration-200 ${
         copied
-          ? 'bg-green-500/20 text-green-400'
-          : 'bg-gray-600/50 hover:bg-gray-500/50 text-gray-300'
+          ? 'bg-green-500/20 text-green-400 scale-110'
+          : 'bg-gray-700/50 hover:bg-gray-600/50 text-gray-300'
       }`}
     >
       <CopyIcon className="h-5 w-5" />
-      <span className="absolute -top-8 -right-2 bg-gray-900 text-xs px-2 py-1 rounded-md opacity-0 transition-opacity group-hover:opacity-100 whitespace-nowrap">
-        {copied ? 'Copied!' : 'Copy Post'}
-      </span>
     </button>
   );
 };
-
 
 export const PostCard: React.FC<PostCardProps> = ({ platform, content }) => {
   const isLinkedIn = platform === 'LinkedIn';
@@ -47,20 +43,22 @@ export const PostCard: React.FC<PostCardProps> = ({ platform, content }) => {
     }
     return `${post.title}\n\n${post.body}\n\nTakeaway:\n${post.takeaway}`;
   };
+  
+  const isError = post.title?.startsWith('Error') || post.headline?.startsWith('Error');
 
   return (
-    <div className="bg-gray-800 rounded-lg p-6 relative group h-full flex flex-col border border-gray-700/80">
-      <CopyButton textToCopy={getTextToCopy()} />
+    <div className={`bg-gray-900 rounded-lg p-6 relative h-full flex flex-col border ${isError ? 'border-red-500/50' : 'border-gray-700/80'}`}>
+      {!isError && <CopyButton textToCopy={getTextToCopy()} />}
       <div className="flex items-center space-x-3 mb-4">
-        {isLinkedIn ? <LinkedInIcon className="h-7 w-7" /> : <MediumIcon className="h-7 w-7" />}
+        {isLinkedIn ? <LinkedInIcon className="h-7 w-7 text-blue-500" /> : <MediumIcon className="h-7 w-7" />}
         <h3 className="text-xl font-bold text-white">{platform} Post</h3>
       </div>
       
-      <div className="flex-grow space-y-4 text-gray-300">
-        <h4 className="font-semibold text-lg text-cyan-400">{isLinkedIn ? post.headline : post.title}</h4>
+      <div className="flex-grow space-y-4 text-gray-300 overflow-y-auto max-h-[60vh]">
+        <h4 className={`font-semibold text-lg ${isError ? 'text-red-400' : 'text-cyan-400'}`}>{isLinkedIn ? post.headline : post.title}</h4>
         <p className="whitespace-pre-wrap text-sm leading-relaxed">{post.body}</p>
         
-        {isLinkedIn && post.hashtags && (
+        {isLinkedIn && post.hashtags?.length > 0 && (
           <p className="text-cyan-500 text-sm font-medium">{post.hashtags.join(' ')}</p>
         )}
 

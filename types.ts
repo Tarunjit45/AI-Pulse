@@ -1,4 +1,3 @@
-
 export interface LinkedInPost {
   headline: string;
   body: string;
@@ -11,13 +10,9 @@ export interface MediumArticle {
   takeaway: string;
 }
 
-export interface Source {
+export interface Article {
   title: string;
-  url: string;
-}
-
-export interface NewsItem {
-  linkedinPost: LinkedInPost;
-  mediumArticle: MediumArticle;
-  source: Source;
+  body: string; // A concise summary in Markdown
+  imageUrl: string; // URL for a relevant image
+  sources: string[]; // Array of source URLs
 }
