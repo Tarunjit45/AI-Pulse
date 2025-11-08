@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import { Article } from '../types';
 import { LinkedInIcon, MediumIcon, ShareIcon } from './icons';
 
@@ -27,8 +27,9 @@ interface ArticleCardProps {
 
 export const ArticleCard: React.FC<ArticleCardProps> = ({ article, isGenerating, onGenerate, onSwipe, isTopCard }) => {
   const cardRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
   const dragStartPos = useRef<{ x: number } | null>(null);
-  const [style, setStyle] = useState({});
+  const [style, setStyle] = useState<React.CSSProperties>({});
   const [swipeFeedback, setSwipeFeedback] = useState<'like' | 'nope' | null>(null);
 
   const articleHtml = renderMarkdown(article.body);
@@ -36,73 +37,70 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, isGenerating,
 
   const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
     if (!isTopCard) return;
+
+    isDragging.current = true;
     const point = 'touches' in e ? e.touches[0] : e;
     dragStartPos.current = { x: point.clientX };
-    // Disable transition for smooth dragging
-    if (cardRef.current) {
-        cardRef.current.style.transition = 'none';
-    }
-  };
 
-  const handleDragMove = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!dragStartPos.current || !isTopCard) return;
-    e.preventDefault();
-    const point = 'touches' in e ? e.touches[0] : e;
-    const dx = point.clientX - dragStartPos.current.x;
-    const rotation = dx * 0.1;
+    // Define move and end handlers inside the start handler to ensure they capture the correct context
+    const handleDragMove = (moveEvent: MouseEvent | TouchEvent) => {
+      if (!isDragging.current || !dragStartPos.current) return;
     
-    setStyle({
-      transform: `translate(${dx}px, 0px) rotate(${rotation}deg)`,
-    });
+      if (moveEvent instanceof TouchEvent) {
+        moveEvent.preventDefault();
+      }
 
-    if (dx > 20) setSwipeFeedback('like');
-    else if (dx < -20) setSwipeFeedback('nope');
-    else setSwipeFeedback(null);
-  };
+      const movePoint = 'touches' in moveEvent ? moveEvent.touches[0] : moveEvent;
+      const dx = movePoint.clientX - dragStartPos.current.x;
+      const rotation = dx * 0.1;
+      
+      setStyle({
+        transform: `translate(${dx}px, 0px) rotate(${rotation}deg)`,
+        transition: 'none',
+      });
 
-  const handleDragEnd = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!dragStartPos.current || !isTopCard || !cardRef.current) return;
-    
-    const point = 'changedTouches' in e ? e.changedTouches[0] : e;
-    const dx = point.clientX - dragStartPos.current.x;
-    
-    // Re-enable transition for exit or snap-back animation
-    cardRef.current.style.transition = 'transform 0.3s ease-out';
-
-    if (Math.abs(dx) > SWIPE_THRESHOLD) {
-      const exitX = dx > 0 ? window.innerWidth : -window.innerWidth;
-      const rotation = dx * 0.2;
-      setStyle({ transform: `translate(${exitX}px, 0px) rotate(${rotation}deg)` });
-      setTimeout(onSwipe, 300);
-    } else {
-      setStyle({ transform: 'translate(0, 0) rotate(0deg)' });
-    }
-    setSwipeFeedback(null);
-    dragStartPos.current = null;
-  };
-
-  // Add and remove global event listeners for smooth dragging outside the card
-  useEffect(() => {
-    const card = cardRef.current;
-    if (!card || !isTopCard) return;
-
-    const onMove = (e: MouseEvent | TouchEvent) => handleDragMove(e as any);
-    const onEnd = (e: MouseEvent | TouchEvent) => handleDragEnd(e as any);
-
-    if (dragStartPos.current) {
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('touchmove', onMove, { passive: false });
-      document.addEventListener('mouseup', onEnd);
-      document.addEventListener('touchend', onEnd);
-    }
-
-    return () => {
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('touchmove', onMove);
-      document.removeEventListener('mouseup', onEnd);
-      document.removeEventListener('touchend', onEnd);
+      if (dx > 20) setSwipeFeedback('like');
+      else if (dx < -20) setSwipeFeedback('nope');
+      else setSwipeFeedback(null);
     };
-  }, [dragStartPos.current, isTopCard]); // Re-run when dragging starts/stops
+
+    const handleDragEnd = (endEvent: MouseEvent | TouchEvent) => {
+      if (!isDragging.current || !dragStartPos.current) return;
+
+      isDragging.current = false;
+      
+      document.removeEventListener('mousemove', handleDragMove);
+      document.removeEventListener('touchmove', handleDragMove);
+      document.removeEventListener('mouseup', handleDragEnd);
+      document.removeEventListener('touchend', handleDragEnd);
+      
+      const point = 'changedTouches' in endEvent ? endEvent.changedTouches[0] : endEvent;
+      const dx = point.clientX - dragStartPos.current.x;
+
+      if (Math.abs(dx) > SWIPE_THRESHOLD) {
+        const exitX = dx > 0 ? window.innerWidth : -window.innerWidth;
+        const rotation = dx * 0.2;
+        setStyle({ 
+          transform: `translate(${exitX}px, 0px) rotate(${rotation}deg)`,
+          transition: 'transform 0.3s ease-out' 
+        });
+        setTimeout(onSwipe, 300);
+      } else {
+        setStyle({ 
+          transform: 'translate(0, 0) rotate(0deg)',
+          transition: 'transform 0.3s ease-out'
+        });
+      }
+      
+      setSwipeFeedback(null);
+      dragStartPos.current = null;
+    };
+    
+    document.addEventListener('mousemove', handleDragMove);
+    document.addEventListener('touchmove', handleDragMove, { passive: false });
+    document.addEventListener('mouseup', handleDragEnd);
+    document.addEventListener('touchend', handleDragEnd);
+  };
 
   const handleShare = async () => {
     if (navigator.share) {
@@ -124,7 +122,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, isGenerating,
   return (
     <div
       ref={cardRef}
-      className={`absolute w-full h-full bg-gray-950/50 border border-gray-800 rounded-xl shadow-lg overflow-hidden backdrop-blur-sm flex flex-col ${isTopCard ? 'cursor-grab active:cursor-grabbing' : 'scale-95 -translate-y-4 opacity-70'}`}
+      className={`absolute w-full h-full bg-gray-950/50 border border-gray-800 rounded-xl shadow-lg overflow-hidden backdrop-blur-sm flex flex-col transition-all duration-300 ease-out ${isTopCard ? 'cursor-grab active:cursor-grabbing' : 'scale-95 -translate-y-4 opacity-70'}`}
       style={style}
       onMouseDown={handleDragStart}
       onTouchStart={handleDragStart}

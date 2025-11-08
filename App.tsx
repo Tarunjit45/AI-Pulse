@@ -41,14 +41,25 @@ function App() {
       setError(null);
       setArticles([]);
       try {
-        const article1 = await generateSingleArticle();
-        const article2 = await generateSingleArticle([article1.title]);
-        setArticles([article1, article2]);
+        // Fetch the first article and show it immediately
+        const firstArticle = await generateSingleArticle();
+        setArticles([firstArticle]);
+        setIsLoading(false);
+
+        // Fetch the second article in the background and add it to the queue
+        generateSingleArticle([firstArticle.title])
+          .then(secondArticle => {
+            setArticles(prev => [...prev, secondArticle]);
+          })
+          .catch(err => {
+            console.error("Failed to fetch next article:", err);
+            // Don't show a blocking error, just log it.
+            // The user can still interact with the first article.
+          });
       } catch(err) {
-        setError(err instanceof Error ? err.message : 'An unknown error occurred.');
+        setError(err instanceof Error ? err.message : 'An unknown error occurred while fetching the first article.');
         setArticles([]);
         console.error(err);
-      } finally {
         setIsLoading(false);
       }
     };
