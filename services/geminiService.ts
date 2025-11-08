@@ -15,7 +15,7 @@ export const generateSingleArticle = async (previousTitles: string[] = []): Prom
     1.  Find a significant, distinct AI news story from the last 24-48 hours. If possible, do not use any of the following topics/titles: ${JSON.stringify(previousTitles)}.
     2.  Write a clear, compelling title for the story.
     3.  Write a concise, 2-paragraph summary of the news in Markdown format.
-    4.  Find a URL for a high-quality, relevant, free-to-use stock image (e.g., from Unsplash, Pexels, Pixabay) that relates to the article's content.
+    4.  Find a direct, hotlinkable URL for a high-quality, relevant, free-to-use stock image (e.g., from Unsplash, Pexels, Pixabay). The URL must be a direct link to the image file (e.g., ending in .jpg, .png, .jpeg) and not a link to a webpage.
     5.  List the original source URLs you used for your research.
 
     Your final output MUST be a single, valid JSON object. Do not include any other text, commentary, or markdown formatting around the JSON object.

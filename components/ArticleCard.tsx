@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Article } from '../types';
 import { LinkedInIcon, MediumIcon, ShareIcon } from './icons';
 
@@ -31,9 +31,19 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, isGenerating,
   const dragStartPos = useRef<{ x: number } | null>(null);
   const [style, setStyle] = useState<React.CSSProperties>({});
   const [swipeFeedback, setSwipeFeedback] = useState<'like' | 'nope' | null>(null);
+  const [imageError, setImageError] = useState(false);
+
+  // Reset image error state when the article (and thus imageUrl) changes
+  useEffect(() => {
+    setImageError(false);
+  }, [article.imageUrl]);
 
   const articleHtml = renderMarkdown(article.body);
   const SWIPE_THRESHOLD = 120; // pixels
+
+  const handleImageError = () => {
+    setImageError(true);
+  };
 
   const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
     if (!isTopCard) return;
@@ -135,8 +145,22 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, isGenerating,
         <div className="absolute top-8 right-4 text-red-400 border-4 border-red-400 rounded-lg px-4 py-2 text-2xl sm:text-3xl font-bold tracking-widest rotate-12 select-none opacity-80 z-10">NOPE</div>
       )}
       
-      <div className="flex-shrink-0">
-        <img src={article.imageUrl} alt={article.title} className="w-full h-40 sm:h-48 object-cover pointer-events-none" />
+      <div className="flex-shrink-0 h-40 sm:h-48 bg-gray-900">
+        {!imageError ? (
+          <img
+            src={article.imageUrl}
+            alt={article.title}
+            className="w-full h-full object-cover pointer-events-none"
+            onError={handleImageError}
+          />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 text-center p-4">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-600 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <span className="text-gray-500 text-sm">Image unavailable</span>
+          </div>
+        )}
       </div>
       
       <div className="p-6 flex-grow flex flex-col overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
