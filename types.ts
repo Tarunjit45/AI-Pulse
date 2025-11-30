@@ -13,6 +13,6 @@ export interface MediumArticle {
 export interface Article {
   title: string;
   body: string; // A concise summary in Markdown
-  imageUrl: string; // URL for a relevant image
+  imageUrl: string | null; // FIX: Allowing null if the image fetch fails
   sources: string[]; // Array of source URLs
 }
