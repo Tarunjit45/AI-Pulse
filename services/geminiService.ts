@@ -1,7 +1,15 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Article, LinkedInPost, MediumArticle } from '../types';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+/**
+ * CRITICAL SECURITY WARNING:
+ * * In a production environment, this file MUST NOT initialize the API client
+ * with a client-side environment variable. The API key MUST be secured on a backend
+ * proxy service (e.g., a dedicated serverless function).
+ * * This initialization is left here only for local execution assuming a proxy will wrap it.
+ */
+// ASSUMPTION: This apiKey is being handled by a secure backend proxy or serverless function
+const ai = new GoogleGenAI({}); 
 
 /**
  * Generates a single summary article about the latest AI trends.
@@ -15,35 +23,40 @@ export const generateSingleArticle = async (previousTitles: string[] = []): Prom
     1.  Find a significant, distinct AI news story from the last 24-48 hours. If possible, do not use any of the following topics/titles: ${JSON.stringify(previousTitles)}.
     2.  Write a clear, compelling title for the story.
     3.  Write a concise, 2-paragraph summary of the news in Markdown format.
-    4.  Find a direct, hotlinkable URL for a high-quality, relevant, free-to-use stock image (e.g., from Unsplash, Pexels, Pixabay). The URL must be a direct link to the image file (e.g., ending in .jpg, .png, .jpeg) and not a link to a webpage.
+    4.  Find a direct, hotlinkable URL for a high-quality, relevant, free-to-use stock image. The URL must be a direct link to the image file (e.g., ending in .jpg, .png, .jpeg) or return an empty string if none is found.
     5.  List the original source URLs you used for your research.
 
     Your final output MUST be a single, valid JSON object. Do not include any other text, commentary, or markdown formatting around the JSON object.
-    Each object must follow this exact structure:
-    {
-      "title": "The article title",
-      "body": "The 2-paragraph summary in Markdown format.",
-      "imageUrl": "The URL of the stock image.",
-      "sources": ["http://source-url-1.com", "http://source-url-2.com"]
-    }
   `;
   
+  const ARTICLE_SCHEMA = {
+    type: Type.OBJECT,
+    properties: {
+      title: { type: Type.STRING, description: "The article title" },
+      body: { type: Type.STRING, description: "The 2-paragraph summary in Markdown format." },
+      imageUrl: { type: Type.STRING, description: "The URL of the stock image, or null if none." },
+      sources: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Array of original source URLs" },
+    },
+    required: ['title', 'body', 'sources'],
+  };
+
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash', // Use flash for faster generation in the swipe-based UI
+    model: 'gemini-2.5-flash',
     contents: "Find and summarize one important AI news story from the last couple of days.",
     config: {
       systemInstruction,
       tools: [{ googleSearch: {} }],
       temperature: 0.8,
+      responseMimeType: 'application/json', // FIX: Use structured output for reliability
+      responseSchema: ARTICLE_SCHEMA,
     },
   });
 
-  const jsonText = response.text.trim().replace(/```json|```/g, '');
-
   try {
-    return JSON.parse(jsonText);
+    // FIX: Using response.json for reliable structured parsing
+    return response.json as Article; 
   } catch (e) {
-    console.error("Failed to parse article JSON:", jsonText);
+    console.error("Failed to parse article JSON:", response.text);
     throw new Error(`The AI returned an invalid format for the article feed.`);
   }
 };
@@ -102,12 +115,11 @@ export const generateSocialPost = async (
     },
   });
   
-  const jsonText = response.text.trim();
-  
   try {
-    return JSON.parse(jsonText);
+    // FIX: Using response.json for reliable structured parsing
+    return response.json as LinkedInPost | MediumArticle;
   } catch (e) {
-    console.error("Failed to parse social post JSON:", jsonText);
+    console.error("Failed to parse social post JSON:", response.text);
     throw new Error(`The AI returned an invalid format for the ${platform} post.`);
   }
 };
