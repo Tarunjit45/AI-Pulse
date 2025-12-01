@@ -1,29 +1,43 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-g" />
+    <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Pulse</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>AI Pulse - Your Daily AI Briefing</title>
+    <!-- 
+      Tailwind CSS setup: Assuming Tailwind is configured via PostCSS/Vite.
+      If not, you might need a CDN link here, but the standard Vite/React setup 
+      uses local post-processing which is preferred for production.
+    -->
     <style>
-      body {
+      /* Ensure full height and smooth font rendering */
+      body, html, #root {
+        height: 100%;
+        margin: 0;
+        padding: 0;
         font-family: 'Inter', sans-serif;
+        color-scheme: dark;
+        background-color: #000;
       }
-      @import url('https://rsms.me/inter/inter.css');
+      /* Custom fade animation for the toast notification */
+      @keyframes fadeInOut {
+        0% { opacity: 0; transform: translate(-50%, 20px); }
+        10% { opacity: 1; transform: translate(-50%, 0); }
+        90% { opacity: 1; transform: translate(-50%, 0); }
+        100% { opacity: 0; transform: translate(-50%, 20px); }
+      }
+      .animate-fadeInOut {
+        animation: fadeInOut 2.3s ease-in-out forwards;
+      }
     </style>
-  <script type="importmap">
-{
-  "imports": {
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.27.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0"
-  }
-}
-</script>
-</head>
-  <body class="bg-black text-gray-100">
+  </head>
+  <body>
+    <!-- The root element where your React application mounts -->
     <div id="root"></div>
+    <!-- 
+      Vite automatically injects the main script file (index.tsx) here 
+      using module type.
+    -->
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

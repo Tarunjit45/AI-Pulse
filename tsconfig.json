@@ -10,9 +10,8 @@
       "DOM.Iterable"
     ],
     "skipLibCheck": true,
-    "types": [
-      "node"
-    ],
+    // FIX: Removed 'node' from types to prevent frontend type leakage
+    "types": [], 
     "moduleResolution": "bundler",
     "isolatedModules": true,
     "moduleDetection": "force",
@@ -24,6 +23,10 @@
       ]
     },
     "allowImportingTsExtensions": true,
-    "noEmit": true
+    "noEmit": true,
+    // CRITICAL: Enforce strict type checking for production
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true 
   }
 }
