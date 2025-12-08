@@ -93,13 +93,16 @@ const ChatInterface = ({ article }: { article: Article }) => {
 const renderMarkdown = (text: string) => {
   if(!text) return '';
   let html = text
-    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-white shadow-neon-cyan/10 drop-shadow-sm">$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em class="text-neon-cyan not-italic">$1</em>')
-    .replace(/\n\n/g, '</p><p class="mb-4 md:mb-6 leading-relaxed">')
+    // "Digital Highlighter" effect for bold text
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-white bg-gradient-to-r from-neon-cyan/15 to-transparent px-2 py-0.5 rounded-md mx-0.5 border-l-2 border-neon-cyan shadow-[0_0_15px_rgba(0,242,234,0.1)] decoration-clone">$1</strong>')
+    // Stylized Italic
+    .replace(/\*(.*?)\*/g, '<em class="text-neon-pink font-medium not-italic tracking-wide">$1</em>')
+    // Paragraph Spacing
+    .replace(/\n\n/g, '</p><p class="mb-8 leading-relaxed">')
     .replace(/\n/g, '<br />');
 
-  // Enhanced readability for desktop (lg)
-  return `<div class="font-body text-base md:text-lg lg:text-xl leading-7 md:leading-8 text-gray-200 tracking-wide">${html}</div>`;
+  // Wrapper for optimal readability
+  return `<div class="font-body text-lg md:text-xl leading-8 md:leading-10 text-slate-200 tracking-wide font-normal antialiased">${html}</div>`;
 };
 
 interface ArticleCardProps {
@@ -194,7 +197,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, isGenerating,
   return (
     <div
       ref={cardRef}
-      className={`absolute w-full h-full bg-[#111827]/95 backdrop-blur-xl border border-white/15 rounded-2xl md:rounded-3xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col transition-all duration-300 select-none ${isTopCard ? 'cursor-grab active:cursor-grabbing z-20 shadow-[0_0_40px_rgba(0,242,234,0.05)]' : 'scale-[0.94] translate-y-6 opacity-40 z-10 grayscale-[50%]'}`}
+      className={`absolute w-full h-full bg-gradient-to-br from-[#1a1b26] to-[#020617] backdrop-blur-2xl border border-white/10 border-t-white/20 rounded-2xl md:rounded-3xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col transition-all duration-300 select-none ${isTopCard ? 'cursor-grab active:cursor-grabbing z-20 shadow-[0_0_50px_rgba(124,58,237,0.1)]' : 'scale-[0.94] translate-y-6 opacity-40 z-10 grayscale-[50%]'}`}
       style={style}
       onMouseDown={handleDragStart}
       onTouchStart={handleDragStart}
@@ -208,12 +211,13 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, isGenerating,
       </div>
 
       {/* Hero Image Section - Optimized for Desktop Height */}
-      <div className="relative h-48 md:h-[35%] shrink-0 group overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-t from-[#111827] via-[#111827]/40 to-transparent z-10" />
+      <div className="relative h-48 md:h-[35%] shrink-0 group overflow-hidden border-b border-white/5">
+        <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-[#020617]/40 to-transparent z-10" />
         
         {/* Category Badge */}
         <div className="absolute top-3 left-3 md:top-4 md:left-4 z-20">
-            <span className="px-2.5 py-1.5 md:px-3 md:py-1.5 bg-black/70 backdrop-blur-md border border-white/20 rounded-lg text-[10px] md:text-xs font-bold uppercase tracking-widest text-white shadow-lg">
+            <span className="px-3 py-1.5 md:px-4 md:py-1.5 bg-black/60 backdrop-blur-xl border border-white/10 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-widest text-white shadow-xl flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-neon-cyan animate-pulse"></span>
                 {article.category || 'NEWS'}
             </span>
         </div>
@@ -244,18 +248,18 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, isGenerating,
             onError={() => setImageError(true)}
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gray-800 pattern-grid-lg">
-             <span className="text-gray-500 font-mono text-xs tracking-widest uppercase">Image Data Corrupted</span>
+          <div className="w-full h-full flex items-center justify-center bg-gray-900 pattern-grid-lg">
+             <span className="text-gray-500 font-mono text-xs tracking-widest uppercase">Signal Lost</span>
           </div>
         )}
         
         <div className="absolute bottom-0 left-0 p-4 md:p-6 lg:p-8 z-20 w-full">
-            <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold text-white leading-tight drop-shadow-xl line-clamp-2 shadow-black">{article.title}</h2>
+            <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold text-white leading-tight drop-shadow-xl line-clamp-2 shadow-black tracking-tight">{article.title}</h2>
         </div>
       </div>
 
       {/* Futuristic Tabs */}
-      <div className="flex mx-3 md:mx-4 mt-2 p-1 bg-white/5 rounded-xl backdrop-blur-md border border-white/5 no-drag relative z-20 shrink-0">
+      <div className="flex mx-3 md:mx-4 mt-3 p-1 bg-black/20 rounded-xl backdrop-blur-sm border border-white/5 no-drag relative z-20 shrink-0">
         {[
             { id: 'story', label: 'Briefing' },
             { id: 'analysis', label: 'Deep Dive' },
@@ -264,10 +268,10 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, isGenerating,
             <button
                 key={tab.id}
                 onClick={(e) => { e.stopPropagation(); setActiveTab(tab.id as any); }}
-                className={`flex-1 py-2 md:py-2.5 text-xs md:text-sm lg:text-base font-bold uppercase tracking-wider rounded-lg transition-all duration-300 relative ${activeTab === tab.id ? 'text-black shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                className={`flex-1 py-2 md:py-2.5 text-xs md:text-sm lg:text-base font-bold uppercase tracking-wider rounded-lg transition-all duration-300 relative ${activeTab === tab.id ? 'text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
             >
                 {activeTab === tab.id && (
-                    <div className="absolute inset-0 bg-gradient-to-r from-neon-cyan to-blue-400 rounded-lg -z-10 animate-fade-in"></div>
+                    <div className="absolute inset-0 bg-white/10 rounded-lg -z-10 animate-fade-in border border-white/5"></div>
                 )}
                 {tab.label}
             </button>
@@ -280,16 +284,16 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, isGenerating,
         {activeTab === 'story' && (
             <div className="animate-fadeIn">
                 <div 
-                  className="prose prose-invert prose-p:text-gray-200 max-w-none mb-4 md:mb-6"
+                  className="prose prose-invert prose-p:text-slate-300 max-w-none mb-4 md:mb-6"
                   dangerouslySetInnerHTML={{ __html: articleHtml }}
                 />
                 
-                <div className="flex items-center gap-2 mt-4 opacity-60 hover:opacity-100 transition-opacity">
-                    <div className="h-px bg-gradient-to-r from-transparent via-gray-500 to-transparent flex-grow"></div>
-                    <a href={article.sources[0]} target="_blank" rel="noopener noreferrer" className="text-[10px] md:text-xs text-neon-cyan font-mono uppercase tracking-widest hover:underline truncate max-w-[150px] md:max-w-[200px]">
+                <div className="flex items-center gap-3 mt-8 opacity-60 hover:opacity-100 transition-opacity">
+                    <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent flex-grow"></div>
+                    <a href={article.sources[0]} target="_blank" rel="noopener noreferrer" className="text-[10px] md:text-xs text-neon-cyan font-mono uppercase tracking-widest hover:text-white transition-colors truncate max-w-[150px] md:max-w-[200px] border border-neon-cyan/20 px-2 py-1 rounded hover:bg-neon-cyan/10">
                         SOURCE UPLINK
                     </a>
-                    <div className="h-px bg-gradient-to-r from-transparent via-gray-500 to-transparent flex-grow"></div>
+                    <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent flex-grow"></div>
                 </div>
             </div>
         )}
@@ -301,18 +305,18 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, isGenerating,
                      <ScoreBar label="Global Impact" score={article.analysis.impactScore} colorClass="text-neon-cyan" />
                 </div>
 
-                <div className="relative p-5 md:p-6 bg-gradient-to-br from-neon-purple/10 to-transparent rounded-xl md:rounded-2xl border border-neon-purple/20">
-                    <div className="absolute -top-3 left-4 bg-[#111827] border border-neon-purple/20 px-3 py-0.5 text-xs md:text-sm font-bold text-neon-purple uppercase tracking-widest rounded-full">Projection</div>
-                    <p className="text-gray-200 italic font-body text-sm md:text-base lg:text-lg leading-relaxed mt-1">
+                <div className="relative p-5 md:p-6 bg-gradient-to-br from-neon-purple/5 to-transparent rounded-xl md:rounded-2xl border border-neon-purple/20">
+                    <div className="absolute -top-3 left-4 bg-[#020617] border border-neon-purple/20 px-3 py-0.5 text-xs md:text-sm font-bold text-neon-purple uppercase tracking-widest rounded-full shadow-lg">Projection</div>
+                    <p className="text-slate-200 italic font-body text-sm md:text-base lg:text-lg leading-relaxed mt-1">
                         "{article.analysis.prediction}"
                     </p>
                 </div>
 
                 <div className="relative p-5 md:p-6 bg-gradient-to-br from-blue-900/10 to-transparent rounded-xl md:rounded-2xl border border-blue-500/20">
-                    <div className="absolute -top-3 left-4 bg-[#111827] border border-blue-500/20 px-3 py-0.5 text-xs md:text-sm font-bold text-blue-400 uppercase tracking-widest rounded-full">Key Focus</div>
+                    <div className="absolute -top-3 left-4 bg-[#020617] border border-blue-500/20 px-3 py-0.5 text-xs md:text-sm font-bold text-blue-400 uppercase tracking-widest rounded-full shadow-lg">Key Focus</div>
                     <div className="flex flex-col gap-2 mt-1">
                         <span className="text-white font-display font-bold text-lg md:text-xl lg:text-2xl">{article.analysis.technicalTerm}</span>
-                        <span className="text-gray-300 text-sm md:text-base lg:text-lg leading-relaxed">{article.analysis.simpleDefinition}</span>
+                        <span className="text-slate-300 text-sm md:text-base lg:text-lg leading-relaxed">{article.analysis.simpleDefinition}</span>
                     </div>
                 </div>
             </div>
@@ -327,7 +331,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, isGenerating,
 
       {/* Footer Actions */}
       <div 
-        className="p-3 md:p-5 bg-[#111827]/95 backdrop-blur-xl border-t border-white/10 flex gap-2 md:gap-3 no-drag z-30 shrink-0"
+        className="p-3 md:p-5 bg-black/40 backdrop-blur-xl border-t border-white/5 flex gap-2 md:gap-3 no-drag z-30 shrink-0"
       >
         <button
             onClick={() => onGenerate(article.body, 'LinkedIn')}

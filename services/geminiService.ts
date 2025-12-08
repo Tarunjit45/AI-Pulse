@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { Article, LinkedInPost, MediumArticle } from '../types';
 
@@ -60,7 +61,7 @@ export const generateSingleArticle = async (
     CRITICAL JSON FORMATTING RULES:
     1. Return ONLY the JSON object. Do not include Markdown code blocks (like \`\`\`json).
     2. Ensure the JSON is strictly valid.
-    3. ESCAPE ALL DOUBLE QUOTES inside string values. For example, use \\"text\\" instead of "text".
+    3. DO NOT use double quotes (") inside the content strings. Use single quotes (') instead for emphasis or direct speech. For example, write 'critical damage' instead of "critical damage".
     4. Escape all newlines in strings as \\n.
   `;
   
