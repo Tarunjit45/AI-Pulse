@@ -1,3 +1,4 @@
+
 import React, { useRef, useState, useEffect } from 'react';
 import { Article } from '../types';
 import { LinkedInIcon, MediumIcon, ShareIcon } from './icons';
@@ -209,6 +210,13 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, isGenerating,
       <div className="relative h-60 shrink-0 group overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-t from-[#0a0f1e] via-[#0a0f1e]/40 to-transparent z-10" />
         
+        {/* Category Badge */}
+        <div className="absolute top-4 left-4 z-20">
+            <span className="px-3 py-1.5 bg-black/60 backdrop-blur-md border border-white/10 rounded-lg text-[10px] font-bold uppercase tracking-widest text-white shadow-lg">
+                {article.category || 'NEWS'}
+            </span>
+        </div>
+
         {/* Audio Button */}
         <button 
             onClick={(e) => { e.stopPropagation(); toggleSpeech(); }}

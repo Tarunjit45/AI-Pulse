@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { LogoIcon, RefreshIcon } from './components/icons';
 import { LoadingState } from './components/LoadingState';
 import { ArticleCard } from './components/ArticleCard';
@@ -9,21 +10,30 @@ import { generateSingleArticle, generateSocialPost } from './services/geminiServ
 import { Article, LinkedInPost, MediumArticle } from './types';
 
 type SocialPlatform = 'LinkedIn' | 'Medium';
+type Region = 'Global' | 'India';
+
+const CATEGORIES = ['All', 'Models', 'Business', 'Hardware', 'Policy', 'Science'];
 
 function App() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [region, setRegion] = useState<Region>('Global');
+  const [activeCategory, setActiveCategory] = useState<string>('All');
+
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [isGeneratingPost, setIsGeneratingPost] = useState<boolean>(false);
   const [generatedPost, setGeneratedPost] = useState<LinkedInPost | MediumArticle | null>(null);
   const [modalPlatform, setModalPlatform] = useState<SocialPlatform | null>(null);
   
+  // Ref to track if initial load is done to prevent double firing in strict mode
+  const initRef = useRef(false);
+
   const fetchArticle = useCallback(async () => {
     try {
       const existingTitles = articles.map(a => a.title);
-      const articleContent = await generateSingleArticle(existingTitles);
+      const articleContent = await generateSingleArticle(existingTitles, region, activeCategory);
       setArticles(prev => [...prev, articleContent]);
     } catch (err) {
       console.error(err);
@@ -31,18 +41,18 @@ function App() {
          setError(err instanceof Error ? err.message : 'An unknown error occurred while fetching news.');
       }
     }
-  }, [articles]);
+  }, [articles, region, activeCategory]);
 
   const init = async () => {
       setIsLoading(true);
       setError(null);
       setArticles([]);
       try {
-        const firstArticle = await generateSingleArticle();
+        const firstArticle = await generateSingleArticle([], region, activeCategory);
         setArticles([firstArticle]);
         setIsLoading(false);
         // Background fetch next
-        generateSingleArticle([firstArticle.title])
+        generateSingleArticle([firstArticle.title], region, activeCategory)
           .then(secondArticle => setArticles(prev => [...prev, secondArticle]))
           .catch(console.error);
       } catch(err) {
@@ -54,7 +64,7 @@ function App() {
   useEffect(() => {
     init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [region, activeCategory]);
 
   const handleSwipe = useCallback(() => {
     setArticles(prev => {
@@ -93,41 +103,86 @@ function App() {
     setModalPlatform(null);
   };
 
+  const isIndia = region === 'India';
+
   return (
-    <div className="min-h-screen bg-void text-gray-100 flex flex-col overflow-hidden relative">
+    <div className="min-h-screen bg-void text-gray-100 flex flex-col overflow-hidden relative transition-colors duration-1000">
       
-      {/* Aesthetic Background - Aurora Effect */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute top-[-20%] left-[-10%] w-[800px] h-[800px] bg-neon-purple/20 rounded-full blur-[128px] animate-blob"></div>
-        <div className="absolute top-[20%] right-[-10%] w-[600px] h-[600px] bg-neon-cyan/10 rounded-full blur-[128px] animate-blob animation-delay-2000"></div>
-        <div className="absolute bottom-[-10%] left-[20%] w-[700px] h-[700px] bg-neon-pink/10 rounded-full blur-[128px] animate-blob animation-delay-4000"></div>
+      {/* Dynamic Background */}
+      <div className="fixed inset-0 z-0 pointer-events-none transition-colors duration-1000">
+        <div className={`absolute top-[-20%] left-[-10%] w-[800px] h-[800px] rounded-full blur-[128px] animate-blob transition-colors duration-1000 ${isIndia ? 'bg-orange-500/20' : 'bg-neon-purple/20'}`}></div>
+        <div className={`absolute top-[20%] right-[-10%] w-[600px] h-[600px] rounded-full blur-[128px] animate-blob animation-delay-2000 transition-colors duration-1000 ${isIndia ? 'bg-blue-600/10' : 'bg-neon-cyan/10'}`}></div>
+        <div className={`absolute bottom-[-10%] left-[20%] w-[700px] h-[700px] rounded-full blur-[128px] animate-blob animation-delay-4000 transition-colors duration-1000 ${isIndia ? 'bg-green-600/15' : 'bg-neon-pink/10'}`}></div>
         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay"></div>
       </div>
 
-      <header className="px-6 py-6 flex items-center justify-between sticky top-0 z-20">
-        <div className="flex items-center space-x-3 bg-glass-border backdrop-blur-md px-4 py-2 rounded-full border border-white/5 shadow-2xl">
-          <div className="relative">
-            <LogoIcon className="h-8 w-8 text-neon-cyan drop-shadow-[0_0_15px_rgba(0,242,234,0.6)]" />
-          </div>
-          <div>
-            <h1 className="text-xl font-display font-bold tracking-tight text-white">AI <span className="text-transparent bg-clip-text bg-gradient-to-r from-neon-cyan to-neon-pink">PULSE</span></h1>
-          </div>
+      <header className="sticky top-0 z-30 transition-all duration-300">
+        <div className="px-4 py-4 md:px-6 md:py-6 flex flex-col gap-4">
+            
+            {/* Top Row: Logo, Region Toggle, Refresh */}
+            <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3 bg-glass-border backdrop-blur-md px-4 py-2 rounded-full border border-white/5 shadow-lg">
+                  <div className="relative">
+                    <LogoIcon className={`h-8 w-8 drop-shadow-[0_0_15px_rgba(255,255,255,0.4)] transition-colors duration-500 ${isIndia ? 'text-orange-400' : 'text-neon-cyan'}`} />
+                  </div>
+                  <div>
+                    <h1 className="text-xl font-display font-bold tracking-tight text-white">AI <span className={`text-transparent bg-clip-text bg-gradient-to-r transition-all duration-500 ${isIndia ? 'from-orange-400 via-white to-green-400' : 'from-neon-cyan to-neon-pink'}`}>PULSE</span></h1>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                    <div className="bg-glass-border backdrop-blur-md rounded-full p-1 flex border border-white/5">
+                        <button 
+                            onClick={() => setRegion('Global')}
+                            className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-300 ${region === 'Global' ? 'bg-neon-cyan/20 text-neon-cyan shadow-[0_0_10px_rgba(0,242,234,0.3)]' : 'text-gray-400 hover:text-white'}`}
+                        >
+                            GLOBAL
+                        </button>
+                        <button 
+                            onClick={() => setRegion('India')}
+                            className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-300 ${region === 'India' ? 'bg-orange-500/20 text-orange-400 shadow-[0_0_10px_rgba(251,146,60,0.3)]' : 'text-gray-400 hover:text-white'}`}
+                        >
+                            INDIA
+                        </button>
+                    </div>
+
+                    {!isLoading && (
+                        <button 
+                            onClick={init} 
+                            className="group p-2.5 bg-glass-border hover:bg-white/10 rounded-full transition-all border border-white/5 hover:border-neon-cyan/50"
+                            title="Refresh Feed"
+                        >
+                            <RefreshIcon className="w-5 h-5 text-gray-300 group-hover:text-neon-cyan transition-colors" />
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            {/* Bottom Row: Categories */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar mask-gradient-x">
+                {CATEGORIES.map(cat => (
+                    <button
+                        key={cat}
+                        onClick={() => setActiveCategory(cat)}
+                        className={`whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider border transition-all duration-300 ${
+                            activeCategory === cat 
+                            ? isIndia 
+                                ? 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.4)]' 
+                                : 'bg-neon-pink text-white border-neon-pink shadow-[0_0_15px_rgba(255,0,85,0.4)]'
+                            : 'bg-glass-border text-gray-400 border-transparent hover:border-white/20 hover:text-white'
+                        }`}
+                    >
+                        {cat}
+                    </button>
+                ))}
+            </div>
         </div>
-        {!isLoading && (
-            <button 
-                onClick={init} 
-                className="group p-3 bg-glass-border hover:bg-white/10 rounded-full transition-all border border-white/5 hover:border-neon-cyan/50 hover:shadow-[0_0_15px_rgba(0,242,234,0.3)]"
-                title="Refresh Feed"
-            >
-                <RefreshIcon className="w-5 h-5 text-gray-300 group-hover:text-neon-cyan transition-colors" />
-            </button>
-        )}
       </header>
       
       <main className="flex-grow container mx-auto p-4 w-full flex flex-col items-center justify-center relative z-10">
         {isLoading && (
           <div className="flex-grow flex items-center justify-center">
-             <LoadingState message="Scanning Global Intelligence..." />
+             <LoadingState message={`Scanning ${region === 'India' ? 'Indian Sector' : 'Global Network'} for ${activeCategory}...`} />
           </div>
         )}
         
@@ -142,13 +197,13 @@ function App() {
         )}
 
         {!isLoading && !error && (
-          <div className="w-full max-w-lg h-[720px] relative flex items-center justify-center">
+          <div className="w-full max-w-lg h-[680px] relative flex items-center justify-center">
             {articles.length > 0 ? (
                articles.slice(0, 2).reverse().map((article, index) => {
                 const isTopCard = index === 1 || articles.length === 1;
                 return (
                   <ArticleCard
-                    key={article.title}
+                    key={`${article.title}-${index}`}
                     article={article}
                     onGenerate={handleGeneratePost}
                     isGenerating={isGeneratingPost}

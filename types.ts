@@ -1,3 +1,4 @@
+
 export interface LinkedInPost {
   headline: string;
   body: string;
@@ -24,4 +25,5 @@ export interface Article {
   imageUrl: string; // URL for a relevant image
   sources: string[]; // Array of source URLs
   analysis: ArticleAnalysis;
+  category: string; // The category of the news (e.g., Models, Policy)
 }
