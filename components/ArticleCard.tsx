@@ -1,3 +1,4 @@
+
 import React, { useRef, useState, useEffect } from 'react';
 import { Article } from '../types';
 import { LinkedInIcon, MediumIcon, ShareIcon } from './icons';
@@ -258,7 +259,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, isGenerating,
         {[
             { id: 'story', label: 'Briefing' },
             { id: 'analysis', label: 'Deep Dive' },
-            { id: 'chat', label: 'Link' }
+            { id: 'chat', label: 'Ask Question' }
         ].map(tab => (
             <button
                 key={tab.id}

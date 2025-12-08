@@ -81,6 +81,14 @@ export const generateSingleArticle = async (
     jsonText = jsonText.replace(/^```(json)?\s*/, '').replace(/\s*```$/, '');
   }
 
+  // Robust extraction: Find the first '{' and last '}'
+  const startIndex = jsonText.indexOf('{');
+  const endIndex = jsonText.lastIndexOf('}');
+  
+  if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
+    jsonText = jsonText.substring(startIndex, endIndex + 1);
+  }
+
   try {
     const rawData = JSON.parse(jsonText);
     
