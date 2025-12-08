@@ -1,111 +1,87 @@
 import React, { useState, useEffect, useCallback } from 'react';
-// Assuming extension-less imports resolve correctly based on Vite convention
-import { LogoIcon } from './components/icons';
+import { LogoIcon, RefreshIcon } from './components/icons';
 import { LoadingState } from './components/LoadingState';
 import { ArticleCard } from './components/ArticleCard';
 import { Modal } from './components/Modal';
 import { PostCard } from './components/PostCard';
 import { Footer } from './components/Footer';
-import { generateSingleArticle, generateSocialPost } from './services/geminiService'; 
+import { generateSingleArticle, generateSocialPost } from './services/geminiService';
 import { Article, LinkedInPost, MediumArticle } from './types';
-
-// Define a structured error type for better debugging
-type AppError = { 
-  message: string; 
-  details?: string; // For console logging or a debug view
-};
 
 type SocialPlatform = 'LinkedIn' | 'Medium';
 
 function App() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<AppError | null>(null); // Use structured error state
+  const [error, setError] = useState<string | null>(null);
 
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [isGeneratingPost, setIsGeneratingPost] = useState<boolean>(false);
   const [generatedPost, setGeneratedPost] = useState<LinkedInPost | MediumArticle | null>(null);
   const [modalPlatform, setModalPlatform] = useState<SocialPlatform | null>(null);
-  const [postError, setPostError] = useState<string | null>(null); // Dedicated error state for the modal
-
-  const getErrorMessage = (err: unknown): string => {
-    return err instanceof Error ? err.message : 'An unknown error occurred.';
-  };
-
-  // Memoized function to fetch a new article and append it
+  
   const fetchArticle = useCallback(async () => {
     try {
       const existingTitles = articles.map(a => a.title);
       const articleContent = await generateSingleArticle(existingTitles);
-      // Use the functional update form for articles array
-      setArticles(prev => [...prev, articleContent]); 
+      setArticles(prev => [...prev, articleContent]);
     } catch (err) {
-      console.error("Background article fetch failed:", err);
-      // If the list is empty (initial fetch failed), set a visible error.
-      if (articles.length === 0) {
-        setError({
-          message: "Failed to load the first article.",
-          details: getErrorMessage(err),
-        });
+      console.error(err);
+      if(articles.length < 2) {
+         setError(err instanceof Error ? err.message : 'An unknown error occurred while fetching news.');
       }
-      // If articles are present, just log the background failure.
     }
-  }, [articles]); 
+  }, [articles]);
 
-  // Initial and subsequent background fetching logic
-  useEffect(() => {
-    const init = async () => {
+  const init = async () => {
       setIsLoading(true);
       setError(null);
       setArticles([]);
       try {
-        // 1. Fetch the first article
         const firstArticle = await generateSingleArticle();
         setArticles([firstArticle]);
         setIsLoading(false);
-
-        // 2. Pre-fetch the second article in the background for smooth swiping
+        // Background fetch next
         generateSingleArticle([firstArticle.title])
-          .then(secondArticle => {
-            setArticles(prev => [...prev, secondArticle]);
-          })
-          .catch(err => {
-            console.error("Failed to pre-fetch next article:", err);
-          });
+          .then(secondArticle => setArticles(prev => [...prev, secondArticle]))
+          .catch(console.error);
       } catch(err) {
-        setError({
-          message: 'An initial critical error occurred.',
-          details: getErrorMessage(err),
-        });
-        setArticles([]);
-        console.error("Initial load failed:", err);
+        setError(err instanceof Error ? err.message : 'Connection to Pulse Network failed.');
         setIsLoading(false);
       }
-    };
-    init();
-  }, []); // Empty dependency array means this runs once on mount
+  };
 
-  // Handles the "swipe" action: removes the top article and fetches a new one
+  useEffect(() => {
+    init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleSwipe = useCallback(() => {
-    setArticles(prev => prev.slice(1));
-    fetchArticle(); // Trigger fetch for the next article
+    setArticles(prev => {
+        const next = prev.slice(1);
+        if (next.length < 2) fetchArticle(); // Pre-fetch when running low
+        return next;
+    });
   }, [fetchArticle]);
 
-  // Handles post generation for LinkedIn or Medium
   const handleGeneratePost = async (articleContent: string, platform: SocialPlatform) => {
     setModalPlatform(platform);
     setIsModalOpen(true);
     setIsGeneratingPost(true);
     setGeneratedPost(null);
-    setPostError(null); // Clear previous modal error
 
     try {
       const postContent = await generateSocialPost(articleContent, platform);
       setGeneratedPost(postContent);
     } catch (err) {
-      const errorMessage = getErrorMessage(err);
-      setPostError(`Could not generate ${platform} post. Reason: ${errorMessage}`);
-      console.error(err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to generate post.';
+      setGeneratedPost({
+        title: `Error`,
+        body: errorMessage,
+        takeaway: "Please try again.",
+        headline: `Error`,
+        hashtags: [],
+      });
     } finally {
       setIsGeneratingPost(false);
     }
@@ -115,51 +91,64 @@ function App() {
     setIsModalOpen(false);
     setGeneratedPost(null);
     setModalPlatform(null);
-    setPostError(null);
   };
 
   return (
-    <div className="min-h-screen bg-black text-gray-100 flex flex-col overflow-hidden font-sans">
-      <header className="p-4 border-b border-gray-800/50 flex items-center justify-between sticky top-0 bg-black/80 backdrop-blur-sm z-20">
-        <div className="flex items-center space-x-3">
-          <LogoIcon className="h-8 w-8 text-cyan-400" />
+    <div className="min-h-screen bg-void text-gray-100 flex flex-col overflow-hidden relative">
+      
+      {/* Aesthetic Background - Aurora Effect */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <div className="absolute top-[-20%] left-[-10%] w-[800px] h-[800px] bg-neon-purple/20 rounded-full blur-[128px] animate-blob"></div>
+        <div className="absolute top-[20%] right-[-10%] w-[600px] h-[600px] bg-neon-cyan/10 rounded-full blur-[128px] animate-blob animation-delay-2000"></div>
+        <div className="absolute bottom-[-10%] left-[20%] w-[700px] h-[700px] bg-neon-pink/10 rounded-full blur-[128px] animate-blob animation-delay-4000"></div>
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay"></div>
+      </div>
+
+      <header className="px-6 py-6 flex items-center justify-between sticky top-0 z-20">
+        <div className="flex items-center space-x-3 bg-glass-border backdrop-blur-md px-4 py-2 rounded-full border border-white/5 shadow-2xl">
+          <div className="relative">
+            <LogoIcon className="h-8 w-8 text-neon-cyan drop-shadow-[0_0_15px_rgba(0,242,234,0.6)]" />
+          </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">AI Pulse</h1>
-            <p className="text-sm text-gray-400">Your Daily AI Briefing, Swiped</p>
+            <h1 className="text-xl font-display font-bold tracking-tight text-white">AI <span className="text-transparent bg-clip-text bg-gradient-to-r from-neon-cyan to-neon-pink">PULSE</span></h1>
           </div>
         </div>
+        {!isLoading && (
+            <button 
+                onClick={init} 
+                className="group p-3 bg-glass-border hover:bg-white/10 rounded-full transition-all border border-white/5 hover:border-neon-cyan/50 hover:shadow-[0_0_15px_rgba(0,242,234,0.3)]"
+                title="Refresh Feed"
+            >
+                <RefreshIcon className="w-5 h-5 text-gray-300 group-hover:text-neon-cyan transition-colors" />
+            </button>
+        )}
       </header>
       
-      <main className="flex-grow container mx-auto p-4 md:p-6 w-full flex flex-col items-center justify-center">
+      <main className="flex-grow container mx-auto p-4 w-full flex flex-col items-center justify-center relative z-10">
         {isLoading && (
           <div className="flex-grow flex items-center justify-center">
-             <LoadingState message="Scanning for the latest AI trends..." />
+             <LoadingState message="Scanning Global Intelligence..." />
           </div>
         )}
         
-        {/* Global Error Display */}
         {error && !isLoading && (
           <div className="flex-grow flex items-center justify-center">
-            <div className="bg-red-900/20 border border-red-500 text-red-300 p-4 rounded-xl shadow-2xl text-center max-w-2xl mx-auto space-y-2">
-              <h3 className="font-extrabold text-xl mb-2">System Failure</h3>
-              <p className="text-lg font-semibold">{error.message}</p>
-              <p className="text-sm text-red-400 italic">Details: {error.details}</p>
-              <p className="text-sm pt-2">Please check the console for debugging information.</p>
+            <div className="bg-red-950/20 border border-red-500/30 text-red-200 p-8 rounded-3xl text-center max-w-lg backdrop-blur-xl shadow-2xl shadow-red-900/10">
+              <h3 className="font-display font-bold text-2xl mb-3 text-red-400">Signal Interrupted</h3>
+              <p className="text-gray-400 mb-6">{error}</p>
+              <button onClick={init} className="px-6 py-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/50 rounded-xl text-sm font-bold text-red-400 transition-all">Retry Uplink</button>
             </div>
           </div>
         )}
 
-        {/* Main Content View (Swipable Cards) */}
         {!isLoading && !error && (
-          <div className="w-full max-w-xl h-[75vh] max-h-[650px] md:h-[620px] relative flex items-center justify-center">
+          <div className="w-full max-w-lg h-[720px] relative flex items-center justify-center">
             {articles.length > 0 ? (
-                // Only render the top two cards (current and next)
-                articles.slice(0, 2).reverse().map((article, index) => {
-                const isTopCard = index === 1 || articles.length === 1; // Top card is index 1 after reverse, or if only 1 exists
+               articles.slice(0, 2).reverse().map((article, index) => {
+                const isTopCard = index === 1 || articles.length === 1;
                 return (
                   <ArticleCard
-                    // Using a more unique key: title + index (as a safeguard)
-                    key={`${article.title}-${index}`}
+                    key={article.title}
                     article={article}
                     onGenerate={handleGeneratePost}
                     isGenerating={isGeneratingPost}
@@ -169,22 +158,9 @@ function App() {
                 )
               })
             ) : (
-              <div className="text-center text-gray-500 p-8 rounded-xl border border-gray-800/50">
-                <p className="text-xl font-semibold">All caught up for now!</p>
-                <p>Come back later for more AI news.</p>
-                {/* Add a button to retry/force fetch */}
-                <button 
-                  onClick={() => { setIsLoading(true); fetchArticle(); }}
-                  className="mt-4 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-lg transition"
-                >
-                  Fetch New Pulse
-                </button>
-              </div>
-            )}
-              {/* Indicator for background fetching */}
-             {articles.length === 1 && (
-              <div className="absolute bottom-4 text-center text-gray-500 animate-pulse text-sm">
-                <p>Finding next article...</p>
+              <div className="text-center">
+                <p className="text-3xl font-display font-bold text-gray-700 mb-2">Feed Complete</p>
+                <p className="text-gray-500">Syncing next cycle...</p>
               </div>
             )}
           </div>
@@ -193,24 +169,9 @@ function App() {
 
       <Footer />
 
-      {/* Modal for Post Generation */}
       <Modal isOpen={isModalOpen} onClose={closeModal}>
-        {isGeneratingPost && <LoadingState message={`Drafting ${modalPlatform} post...`} />}
-        
-        {postError && (
-          <div className="p-6 bg-red-900/20 border border-red-500 rounded-xl text-red-300 text-center">
-             <h3 className="font-bold mb-2">Generation Failed</h3>
-             <p>{postError}</p>
-             <button 
-               onClick={closeModal}
-               className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition"
-             >
-               Close
-             </button>
-          </div>
-        )}
-
-        {generatedPost && modalPlatform && !isGeneratingPost && (
+        {isGeneratingPost && <LoadingState message={`Architecting ${modalPlatform} content...`} />}
+        {generatedPost && modalPlatform && (
           <PostCard platform={modalPlatform} content={generatedPost} />
         )}
       </Modal>

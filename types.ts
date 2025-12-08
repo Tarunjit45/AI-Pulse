@@ -10,9 +10,18 @@ export interface MediumArticle {
   takeaway: string;
 }
 
+export interface ArticleAnalysis {
+  hypeScore: number; // 1-100
+  impactScore: number; // 1-100
+  prediction: string; // What happens next?
+  technicalTerm: string; // A complex term from the article
+  simpleDefinition: string; // ELI5 definition
+}
+
 export interface Article {
   title: string;
   body: string; // A concise summary in Markdown
-  imageUrl: string | null; // FIX: Allowing null if the image fetch fails
+  imageUrl: string; // URL for a relevant image
   sources: string[]; // Array of source URLs
+  analysis: ArticleAnalysis;
 }

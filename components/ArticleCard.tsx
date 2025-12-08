@@ -1,27 +1,103 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Article } from '../types';
-// Assuming extension-less import resolves correctly
-import { LinkedInIcon, MediumIcon, ShareIcon } from './icons'; 
+import { LinkedInIcon, MediumIcon, ShareIcon } from './icons';
+import { chatWithArticle } from '../services/geminiService';
 
-// A simple markdown-to-HTML renderer. Flagged for future replacement with a robust library (e.g., marked.js + DOMPurify).
+// -- Visual Components --
+
+const ScoreBar = ({ label, score, colorClass }: { label: string; score: number; colorClass: string }) => (
+  <div className="mb-5 group">
+    <div className="flex justify-between text-xs font-bold uppercase tracking-widest text-gray-400 mb-2 group-hover:text-white transition-colors">
+      <span>{label}</span>
+      <span className={colorClass}>{score}%</span>
+    </div>
+    <div className="h-3 w-full bg-gray-900/50 rounded-full overflow-hidden border border-white/5 relative">
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent skew-x-12 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 animate-pulse"></div>
+        <div 
+            className={`h-full bg-gradient-to-r ${colorClass.includes('pink') ? 'from-purple-600 to-neon-pink' : 'from-blue-600 to-neon-cyan'} transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(0,0,0,0.5)]`} 
+            style={{ width: `${score}%` }}
+        />
+    </div>
+  </div>
+);
+
+const ChatInterface = ({ article }: { article: Article }) => {
+    const [input, setInput] = useState('');
+    const [messages, setMessages] = useState<{role: string, content: string}[]>([
+        { role: 'model', content: `Ready to analyze "${article.title}". What's on your mind?` }
+    ]);
+    const [loading, setLoading] = useState(false);
+    const scrollRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }, [messages]);
+
+    const handleSend = async () => {
+        if (!input.trim() || loading) return;
+        const userMsg = input;
+        setInput('');
+        setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
+        setLoading(true);
+
+        try {
+            const response = await chatWithArticle(article, userMsg, messages);
+            setMessages(prev => [...prev, { role: 'model', content: response }]);
+        } catch (e) {
+            setMessages(prev => [...prev, { role: 'model', content: "Link unstable. Retrying connection..." }]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="flex flex-col h-full rounded-2xl border border-white/5 bg-black/20 overflow-hidden">
+            <div className="flex-grow overflow-y-auto p-4 space-y-4 custom-scrollbar" ref={scrollRef}>
+                {messages.map((m, i) => (
+                    <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-lg ${
+                            m.role === 'user' 
+                            ? 'bg-gradient-to-br from-neon-purple/20 to-neon-pink/20 text-white border border-neon-pink/20 rounded-tr-none' 
+                            : 'bg-gray-800/60 text-gray-200 border border-white/5 rounded-tl-none backdrop-blur-sm'
+                        }`}>
+                            {m.content}
+                        </div>
+                    </div>
+                ))}
+                {loading && <div className="text-xs text-neon-cyan animate-pulse pl-4 font-mono">:: PROCESSING QUERY ::</div>}
+            </div>
+            <div className="p-3 bg-black/30 border-t border-white/5 flex gap-2">
+                <input 
+                    className="flex-grow bg-gray-900/50 border border-gray-700/50 rounded-full px-5 py-3 text-sm text-white focus:outline-none focus:border-neon-cyan focus:ring-1 focus:ring-neon-cyan/50 transition-all placeholder:text-gray-600 font-medium"
+                    placeholder="Interrogate the data..."
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                />
+                <button 
+                    onClick={handleSend}
+                    className="p-3 bg-neon-cyan/10 hover:bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/30 rounded-full transition-colors active:scale-95"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                        <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    );
+};
+
+// -- Main Component --
+
 const renderMarkdown = (text: string) => {
   if(!text) return '';
   let html = text
-    // Bold
-    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-white">$1</strong>')
-    // Italic
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    // Paragraphs - Note: We assume the AI uses double newline for paragraphs
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-white shadow-neon-cyan/20 drop-shadow-sm">$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em class="text-neon-cyan">$1</em>')
     .replace(/\n\n/g, '</p><p class="mb-4 leading-relaxed text-gray-300">')
-    // Single newlines become line breaks within a paragraph
     .replace(/\n/g, '<br />');
 
-  // Wrap the entire content in a paragraph tag if it's not empty
-  if (html.startsWith('</p>') || html.startsWith('<br />')) {
-      // Handle cases where the first replacement left a residue
-      return `<p class="mb-4 leading-relaxed text-gray-300">${html.replace(/<\/?p class=.*?>|<\/p><p class=.*?>|<br \/>/g, '').trim()}</p>`;
-  }
-  return `<p class="mb-4 leading-relaxed text-gray-300">${html}</p>`;
+  return `<p class="mb-4 leading-relaxed text-gray-300 font-body text-[15px]">${html}</p>`;
 };
 
 interface ArticleCardProps {
@@ -32,260 +108,244 @@ interface ArticleCardProps {
   isTopCard: boolean;
 }
 
-export const ArticleCard: React.FC<ArticleCardProps> = React.memo(({ article, isGenerating, onGenerate, onSwipe, isTopCard }) => {
+export const ArticleCard: React.FC<ArticleCardProps> = ({ article, isGenerating, onGenerate, onSwipe, isTopCard }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const dragStartPos = useRef<{ x: number } | null>(null);
   const [style, setStyle] = useState<React.CSSProperties>({});
-  const [swipeFeedback, setSwipeFeedback] = useState<'like' | 'nope' | null>(null);
+  const [swipeFeedback, setSwipeFeedback] = useState<'save' | 'skip' | null>(null);
+  const [activeTab, setActiveTab] = useState<'story' | 'analysis' | 'chat'>('story');
   const [imageError, setImageError] = useState(false);
-  // NEW: State for custom clipboard notification
-  const [showToast, setShowToast] = useState(false); 
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
-  // Reset image error state when the article (and thus imageUrl) changes
-  useEffect(() => {
-    setImageError(false);
-    // Also reset styles/position when the card content changes
-    setStyle({}); 
-  }, [article.title, article.imageUrl]);
+  useEffect(() => { setImageError(false); setActiveTab('story'); }, [article.imageUrl, article.title]);
 
   const articleHtml = renderMarkdown(article.body);
-  const SWIPE_THRESHOLD = 120; // pixels
+  const SWIPE_THRESHOLD = 120;
 
-  const handleImageError = () => {
-    setImageError(true);
-  };
+  // -- Interactions --
 
-  // FIX: Clipboard copy using platform-approved method (document.execCommand)
-  const copyToClipboard = (text: string) => {
-    const tempElement = document.createElement('textarea');
-    tempElement.value = text;
-    document.body.appendChild(tempElement);
-    tempElement.select();
-
-    try {
-      const successful = document.execCommand('copy');
-      if (successful) {
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 2000);
-      }
-    } catch (err) {
-      console.error('Failed to copy text using execCommand', err);
-    }
-
-    document.body.removeChild(tempElement);
-  };
-
-  // Event handlers need to be stable if used in useEffect dependencies or passed down.
-  // Although not strictly necessary here, declaring them outside the render function body is cleaner.
-  const handleDragMove = (moveEvent: MouseEvent | TouchEvent) => {
-    if (!isDragging.current || !dragStartPos.current) return;
-    
-    if (moveEvent instanceof TouchEvent) {
-      moveEvent.preventDefault(); // Prevent scrolling during drag
-    }
-
-    const movePoint = 'touches' in moveEvent ? moveEvent.touches[0] : moveEvent;
-    const dx = movePoint.clientX - dragStartPos.current.x;
-    const rotation = dx * 0.1;
-    
-    setStyle({
-      transform: `translate(${dx}px, 0px) rotate(${rotation}deg)`,
-      transition: 'none',
-    });
-
-    if (dx > 20) setSwipeFeedback('like');
-    else if (dx < -20) setSwipeFeedback('nope');
-    else setSwipeFeedback(null);
-  };
-
-  const handleDragEnd = (endEvent: MouseEvent | TouchEvent) => {
-    if (!isDragging.current || !dragStartPos.current) return;
-
-    isDragging.current = false;
-    
-    document.removeEventListener('mousemove', handleDragMove);
-    document.removeEventListener('touchmove', handleDragMove);
-    document.removeEventListener('mouseup', handleDragEnd);
-    document.removeEventListener('touchend', handleDragEnd);
-    
-    const point = 'changedTouches' in endEvent ? endEvent.changedTouches[0] : endEvent;
-    const dx = point.clientX - dragStartPos.current.x;
-
-    if (Math.abs(dx) > SWIPE_THRESHOLD) {
-      // Swipe action confirmed
-      const exitX = dx > 0 ? window.innerWidth : -window.innerWidth;
-      const rotation = dx * 0.2;
-      setStyle({ 
-        transform: `translate(${exitX}px, 0px) rotate(${rotation}deg)`,
-        transition: 'transform 0.3s ease-out' 
-      });
-      setTimeout(onSwipe, 300);
+  const toggleSpeech = () => {
+    if (isSpeaking) {
+        window.speechSynthesis.cancel();
+        setIsSpeaking(false);
     } else {
-      // Snap back
-      setStyle({ 
-        transform: 'translate(0, 0) rotate(0deg)',
-        transition: 'transform 0.3s ease-out'
-      });
+        const utterance = new SpeechSynthesisUtterance(`${article.title}. ${article.body}`);
+        utterance.rate = 1.0;
+        utterance.pitch = 0.9;
+        utterance.onend = () => setIsSpeaking(false);
+        window.speechSynthesis.speak(utterance);
+        setIsSpeaking(true);
     }
-    
-    setSwipeFeedback(null);
-    dragStartPos.current = null;
   };
-  
+
   const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
+    if ((e.target as HTMLElement).closest('button, input, .no-drag')) return;
     if (!isTopCard) return;
 
     isDragging.current = true;
     const point = 'touches' in e ? e.touches[0] : e;
     dragStartPos.current = { x: point.clientX };
-    
-    // Attach global listeners for move and end events
-    document.addEventListener('mousemove', handleDragMove);
-    document.addEventListener('touchmove', handleDragMove, { passive: false }); 
-    document.addEventListener('mouseup', handleDragEnd);
-    document.addEventListener('touchend', handleDragEnd);
-  };
-  
-  // Clean up global listeners when component unmounts
-  useEffect(() => {
-    return () => {
+
+    const handleDragMove = (moveEvent: MouseEvent | TouchEvent) => {
+      if (!isDragging.current || !dragStartPos.current) return;
+      const movePoint = 'touches' in moveEvent ? moveEvent.touches[0] : moveEvent;
+      const dx = movePoint.clientX - dragStartPos.current.x;
+      const rotation = dx * 0.04;
+      
+      setStyle({ transform: `translate(${dx}px, 0px) rotate(${rotation}deg)`, transition: 'none' });
+
+      if (dx > 50) setSwipeFeedback('save');
+      else if (dx < -50) setSwipeFeedback('skip');
+      else setSwipeFeedback(null);
+    };
+
+    const handleDragEnd = (endEvent: MouseEvent | TouchEvent) => {
+      if (!isDragging.current || !dragStartPos.current) return;
+      isDragging.current = false;
       document.removeEventListener('mousemove', handleDragMove);
       document.removeEventListener('touchmove', handleDragMove);
       document.removeEventListener('mouseup', handleDragEnd);
       document.removeEventListener('touchend', handleDragEnd);
-    };
-  }, []); 
+      
+      const point = 'changedTouches' in endEvent ? endEvent.changedTouches[0] : endEvent;
+      const dx = point.clientX - dragStartPos.current.x;
 
-  const handleShare = async () => {
-    const shareUrl = article.sources[0] || window.location.href;
-    
-    if (navigator.share) {
-      // Web Share API (preferred on mobile)
-      try {
-        await navigator.share({
-          title: article.title,
-          text: `Check out this AI news: ${article.title}`,
-          url: shareUrl,
-        });
-      } catch (error) {
-        // If sharing fails (e.g., user cancels), fall back to copy
-        console.error('Error sharing, falling back to copy:', error);
-        copyToClipboard(shareUrl);
+      if (Math.abs(dx) > SWIPE_THRESHOLD) {
+        window.speechSynthesis.cancel();
+        const exitX = dx > 0 ? window.innerWidth : -window.innerWidth;
+        setStyle({ transform: `translate(${exitX}px, 0px) rotate(${dx * 0.1}deg)`, transition: 'transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)' });
+        setTimeout(onSwipe, 400);
+      } else {
+        setStyle({ transform: 'translate(0, 0) rotate(0deg)', transition: 'transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)' });
       }
-    } else {
-      // Fallback for desktop/unsupported browsers
-      copyToClipboard(shareUrl);
-    }
+      setSwipeFeedback(null);
+      dragStartPos.current = null;
+    };
+    
+    document.addEventListener('mousemove', handleDragMove);
+    document.addEventListener('touchmove', handleDragMove, { passive: false });
+    document.addEventListener('mouseup', handleDragEnd);
+    document.addEventListener('touchend', handleDragEnd);
   };
 
   return (
-    <>
-      <div
-        ref={cardRef}
-        className={`absolute w-full h-full bg-gray-950/50 border border-gray-800 rounded-xl shadow-lg overflow-hidden backdrop-blur-sm flex flex-col transition-all duration-300 ease-out ${isTopCard ? 'cursor-grab active:cursor-grabbing z-10' : 'scale-95 -translate-y-4 opacity-70 z-0'}`}
-        style={style}
-        onMouseDown={handleDragStart}
-        onTouchStart={handleDragStart}
-      >
-        {/* Swipe Feedback Overlays */}
-        {swipeFeedback === 'like' && isTopCard && (
-          <div className="absolute top-8 left-4 text-green-400 border-4 border-green-400 rounded-lg px-4 py-2 text-2xl sm:text-3xl font-bold tracking-widest -rotate-12 select-none opacity-80 z-20">KEEP</div>
-        )}
-        {swipeFeedback === 'nope' && isTopCard && (
-          <div className="absolute top-8 right-4 text-red-400 border-4 border-red-400 rounded-lg px-4 py-2 text-2xl sm:text-3xl font-bold tracking-widest rotate-12 select-none opacity-80 z-20">SKIP</div>
-        )}
-        
-        <div className="flex-shrink-0 h-40 sm:h-48 bg-gray-900">
-          {!imageError && article.imageUrl ? (
-            <img
-              // Adding a placeholder fallback URL in case of error/absence
-              src={article.imageUrl || "https://placehold.co/800x450/1e293b/94a3b8?text=AI+Pulse"}
-              alt={article.title}
-              className="w-full h-full object-cover pointer-events-none"
-              onError={handleImageError}
-            />
-          ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 text-center p-4">
-              {/* Using a Lucide Icon for a modern look */}
-              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-600 mb-2">
-                <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
-                <circle cx="9" cy="9" r="2"/>
-                <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
-              </svg>
-              <span className="text-gray-500 text-sm">Image unavailable</span>
-            </div>
-          )}
-        </div>
-        
-        <div className="p-6 flex-grow flex flex-col overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
-          <div className="flex-grow">
-              <h2 className="text-xl sm:text-2xl font-bold mb-3 text-white">{article.title}</h2>
-              <div
-                className="prose prose-invert text-gray-300 mb-4"
-                dangerouslySetInnerHTML={{ __html: articleHtml }}
-              />
+    <div
+      ref={cardRef}
+      className={`absolute w-full h-full max-w-lg bg-[#0a0f1e]/80 backdrop-blur-xl border border-white/10 rounded-3xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col transition-all duration-300 select-none ${isTopCard ? 'cursor-grab active:cursor-grabbing z-20 shadow-[0_0_40px_rgba(0,242,234,0.1)]' : 'scale-[0.94] translate-y-6 opacity-40 z-10 grayscale-[50%]'}`}
+      style={style}
+      onMouseDown={handleDragStart}
+      onTouchStart={handleDragStart}
+    >
+      {/* Swipe Feedback Indicators */}
+      <div className={`absolute top-12 left-8 pointer-events-none transition-all duration-200 z-50 ${swipeFeedback === 'save' ? 'opacity-100 scale-110' : 'opacity-0 scale-90'}`}>
+         <div className="bg-gradient-to-r from-green-500 to-emerald-400 text-black font-display font-black text-2xl px-6 py-2 rounded-full -rotate-12 shadow-[0_0_20px_rgba(34,197,94,0.6)] tracking-widest">SAVE</div>
+      </div>
+      <div className={`absolute top-12 right-8 pointer-events-none transition-all duration-200 z-50 ${swipeFeedback === 'skip' ? 'opacity-100 scale-110' : 'opacity-0 scale-90'}`}>
+         <div className="bg-gradient-to-r from-red-500 to-orange-500 text-white font-display font-black text-2xl px-6 py-2 rounded-full rotate-12 shadow-[0_0_20px_rgba(239,68,68,0.6)] tracking-widest">NEXT</div>
+      </div>
 
-              <div className="mb-6">
-                <h4 className="text-sm font-semibold text-gray-400 mb-2">Sources:</h4>
-                <ul className="list-none space-y-1">
-                  {article.sources.map((source, i) => (
-                    <li key={i}>
-                      <a 
-                        href={source} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        // Truncating the URL display for a cleaner look
-                        className="text-cyan-400 hover:text-cyan-300 text-sm transition-colors overflow-hidden text-ellipsis whitespace-nowrap block max-w-full"
-                        title={source} // Full URL shown on hover
-                      >
-                        {source.replace(/^(https?:\/\/)?(www\.)?/i, '').split('/')[0] + '...'}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+      {/* Hero Image Section */}
+      <div className="relative h-60 shrink-0 group overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0a0f1e] via-[#0a0f1e]/40 to-transparent z-10" />
+        
+        {/* Audio Button */}
+        <button 
+            onClick={(e) => { e.stopPropagation(); toggleSpeech(); }}
+            className="absolute top-4 right-4 z-20 p-2.5 bg-black/40 hover:bg-black/60 backdrop-blur-md rounded-full text-white transition-all border border-white/10 no-drag hover:scale-105 active:scale-95"
+        >
+            {isSpeaking ? (
+                <div className="flex gap-1 h-5 w-5 items-center justify-center">
+                    <span className="w-1 h-2 bg-neon-cyan animate-pulse"></span>
+                    <span className="w-1 h-4 bg-neon-pink animate-pulse delay-75"></span>
+                    <span className="w-1 h-3 bg-neon-cyan animate-pulse delay-150"></span>
+                </div>
+            ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
+                </svg>
+            )}
+        </button>
+
+        {!imageError ? (
+          <img
+            src={article.imageUrl}
+            alt={article.title}
+            className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gray-800 pattern-grid-lg">
+             <span className="text-gray-500 font-mono text-xs tracking-widest uppercase">Image Data Corrupted</span>
           </div>
-          
-          <div 
-            className="flex flex-col sm:flex-row gap-3 border-t border-gray-800 pt-5 mt-auto flex-shrink-0"
-            // Ensure no swipe events trigger when interacting with buttons
-            onMouseDown={(e) => e.stopPropagation()} 
-            onTouchStart={(e) => e.stopPropagation()}
-          >
-            <button
-              onClick={() => onGenerate(article.body, 'LinkedIn')}
-              disabled={isGenerating}
-              className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors shadow-lg shadow-blue-600/20"
-            >
-              <LinkedInIcon className="w-5 h-5 mr-2" />
-              Create LinkedIn Post
-            </button>
-            <button
-              onClick={() => onGenerate(article.body, 'Medium')}
-              disabled={isGenerating}
-              className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-gray-700 text-sm font-medium rounded-md text-white bg-gray-800 hover:bg-gray-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors shadow-lg shadow-gray-700/20"
-            >
-              <MediumIcon className="w-5 h-5 mr-2" />
-              Create Medium Post
-            </button>
-            <button
-              onClick={handleShare}
-              className="inline-flex items-center justify-center px-4 py-2 border border-gray-700 text-sm font-medium rounded-md text-gray-300 bg-gray-800/50 hover:bg-gray-700/50 transition-colors shadow-lg shadow-gray-900/20"
-              title="Share Article Link"
-            >
-              <ShareIcon className="w-5 h-5" />
-            </button>
-          </div>
+        )}
+        
+        <div className="absolute bottom-0 left-0 p-6 z-20 w-full">
+            <h2 className="text-2xl font-display font-bold text-white leading-tight drop-shadow-xl">{article.title}</h2>
         </div>
       </div>
 
-      {/* NEW: Custom Toast Notification (replaces alert()) */}
-      {showToast && (
-        <div className="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-lg shadow-xl z-50 transition-opacity duration-300 animate-fadeInOut">
-          Link copied to clipboard!
-        </div>
-      )}
-    </>
+      {/* Futuristic Tabs */}
+      <div className="flex mx-4 mt-2 p-1 bg-white/5 rounded-xl backdrop-blur-md border border-white/5 no-drag relative z-20">
+        {[
+            { id: 'story', label: 'Briefing' },
+            { id: 'analysis', label: 'Pulse' },
+            { id: 'chat', label: 'Link' }
+        ].map(tab => (
+            <button
+                key={tab.id}
+                onClick={(e) => { e.stopPropagation(); setActiveTab(tab.id as any); }}
+                className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-300 relative ${activeTab === tab.id ? 'text-black shadow-lg' : 'text-gray-400 hover:text-white'}`}
+            >
+                {activeTab === tab.id && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-neon-cyan to-blue-400 rounded-lg -z-10 animate-fade-in"></div>
+                )}
+                {tab.label}
+            </button>
+        ))}
+      </div>
+      
+      {/* Content Area */}
+      <div className="p-6 flex-grow overflow-y-auto no-drag custom-scrollbar relative">
+        
+        {activeTab === 'story' && (
+            <div className="animate-fadeIn">
+                <div 
+                  className="prose prose-invert prose-p:text-gray-300 max-w-none mb-6"
+                  dangerouslySetInnerHTML={{ __html: articleHtml }}
+                />
+                
+                <div className="flex items-center gap-2 mt-4 opacity-60 hover:opacity-100 transition-opacity">
+                    <div className="h-px bg-gradient-to-r from-transparent via-gray-500 to-transparent flex-grow"></div>
+                    <a href={article.sources[0]} target="_blank" rel="noopener noreferrer" className="text-[10px] text-neon-cyan font-mono uppercase tracking-widest hover:underline truncate max-w-[200px]">
+                        SOURCE UPLINK
+                    </a>
+                    <div className="h-px bg-gradient-to-r from-transparent via-gray-500 to-transparent flex-grow"></div>
+                </div>
+            </div>
+        )}
+
+        {activeTab === 'analysis' && article.analysis && (
+            <div className="space-y-7 animate-fadeIn h-full flex flex-col justify-center">
+                <div className="space-y-4">
+                     <ScoreBar label="Hype Factor" score={article.analysis.hypeScore} colorClass="text-neon-pink" />
+                     <ScoreBar label="Global Impact" score={article.analysis.impactScore} colorClass="text-neon-cyan" />
+                </div>
+
+                <div className="relative p-5 bg-gradient-to-br from-neon-purple/10 to-transparent rounded-2xl border border-neon-purple/20">
+                    <div className="absolute -top-3 left-4 bg-[#0a0f1e] px-2 text-xs font-bold text-neon-purple uppercase tracking-widest">Projection</div>
+                    <p className="text-gray-200 italic font-body text-sm leading-relaxed">
+                        "{article.analysis.prediction}"
+                    </p>
+                </div>
+
+                <div className="relative p-5 bg-gradient-to-br from-blue-900/10 to-transparent rounded-2xl border border-blue-500/20">
+                    <div className="absolute -top-3 left-4 bg-[#0a0f1e] px-2 text-xs font-bold text-blue-400 uppercase tracking-widest">Term Decoded</div>
+                    <div className="flex flex-col gap-1">
+                        <span className="text-white font-display font-bold text-lg">{article.analysis.technicalTerm}</span>
+                        <span className="text-gray-400 text-sm leading-relaxed">{article.analysis.simpleDefinition}</span>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {activeTab === 'chat' && (
+            <div className="h-full animate-fadeIn pb-2">
+                <ChatInterface article={article} />
+            </div>
+        )}
+      </div>
+
+      {/* Footer Actions */}
+      <div 
+        className="p-5 bg-[#0a0f1e]/90 backdrop-blur-xl border-t border-white/5 flex gap-3 no-drag z-30"
+      >
+        <button
+            onClick={() => onGenerate(article.body, 'LinkedIn')}
+            disabled={isGenerating}
+            className="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold shadow-[0_0_20px_rgba(37,99,235,0.3)] hover:shadow-[0_0_30px_rgba(37,99,235,0.5)] transition-all active:scale-95 disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2 group"
+        >
+            <LinkedInIcon className="w-4 h-4 group-hover:scale-110 transition-transform" />
+            <span>Post</span>
+        </button>
+        <button
+            onClick={() => onGenerate(article.body, 'Medium')}
+            disabled={isGenerating}
+            className="flex-1 py-3 rounded-xl bg-gray-800 hover:bg-gray-700 text-white text-sm font-bold shadow-lg border border-white/5 transition-all active:scale-95 disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2 group"
+        >
+            <MediumIcon className="w-4 h-4 group-hover:scale-110 transition-transform" />
+            <span>Blog</span>
+        </button>
+        <button
+            onClick={() => {
+                 if (navigator.share) navigator.share({ title: article.title, url: article.sources[0] });
+                 else navigator.clipboard.writeText(article.sources[0]);
+            }}
+            className="p-3 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 border border-white/5 transition-all active:scale-95 hover:text-neon-cyan"
+        >
+            <ShareIcon className="w-5 h-5" />
+        </button>
+      </div>
+    </div>
   );
-});
+};

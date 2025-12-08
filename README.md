@@ -1,7 +1,3 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
-
 # AI Pulse
 
 AI Pulse is an intelligent assistant that automatically summarizes the latest AI trends and generates ready-to-publish posts for LinkedIn and Medium using the Google Gemini API.

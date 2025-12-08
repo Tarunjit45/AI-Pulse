@@ -1,49 +1,39 @@
 import React from 'react';
-// Assuming extension-less import resolves correctly
-import { LinkedInIcon, GitHubIcon, EmailIcon } from './icons'; 
+import { LinkedInIcon, GitHubIcon, EmailIcon } from './icons';
 
-interface SocialLinkProps {
-  href: string;
-  children: React.ReactNode;
-  ariaLabel: string;
-}
-
-// Moved outside the main component to prevent re-definition on every render
-const SocialLink: React.FC<SocialLinkProps> = ({ href, children, ariaLabel }) => (
+const SocialLink: React.FC<{ href: string; children: React.ReactNode; ariaLabel: string }> = ({ href, children, ariaLabel }) => (
   <a
     href={href}
     target="_blank"
     rel="noopener noreferrer"
     aria-label={ariaLabel}
-    className="text-gray-400 hover:text-white transform hover:scale-110 transition-all duration-300"
+    className="p-2 text-gray-500 hover:text-neon-cyan transition-all duration-300 hover:scale-110 hover:bg-white/5 rounded-lg"
   >
     {children}
   </a>
 );
 
-// FIX: Used React.memo to prevent unnecessary re-renders since the footer is static
-export const Footer = React.memo(() => {
+export const Footer: React.FC = () => {
   return (
-    <footer className="w-full bg-black border-t border-gray-800/50 py-6 mt-12 flex-shrink-0">
-      <div className="container mx-auto px-4 md:px-6 lg:px-8 text-center text-gray-500">
-        <p className="mb-4 text-sm">
-          Built with Gemini API by <span className="font-semibold text-cyan-400">Tarunjit Biswas</span>
-        </p>
-        <div className="flex items-center justify-center space-x-6">
+    <footer className="w-full relative z-10 mt-12 border-t border-white/5 bg-black/40 backdrop-blur-lg">
+      <div className="container mx-auto px-6 py-8 text-center">
+        <div className="flex items-center justify-center space-x-4 mb-4">
           <SocialLink href="https://www.linkedin.com/in/tarunjit-biswas-a5248131b/" ariaLabel="Tarunjit Biswas's LinkedIn Profile">
-            <LinkedInIcon className="h-6 w-6" />
+            <LinkedInIcon className="h-5 w-5" />
           </SocialLink>
+          <div className="w-px h-4 bg-gray-800"></div>
           <SocialLink href="https://github.com/Tarunjit45" ariaLabel="Tarunjit Biswas's GitHub Profile">
-            <GitHubIcon className="h-6 w-6" />
+            <GitHubIcon className="h-5 w-5" />
           </SocialLink>
+          <div className="w-px h-4 bg-gray-800"></div>
           <SocialLink href="mailto:tarunjitbiswas24@gmail.com" ariaLabel="Email Tarunjit Biswas">
-            <EmailIcon className="h-6 w-6" />
+            <EmailIcon className="h-5 w-5" />
           </SocialLink>
         </div>
-        <p className="mt-4 text-xs text-gray-600">
-            © {new Date().getFullYear()} AI Pulse. All rights reserved.
+        <p className="text-xs font-medium text-gray-600 tracking-wide">
+          ENGINEERED BY <span className="text-gray-400 font-bold hover:text-neon-pink transition-colors cursor-default">TARUNJIT BISWAS</span>
         </p>
       </div>
     </footer>
   );
-});
+};
