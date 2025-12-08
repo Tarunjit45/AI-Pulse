@@ -11,7 +11,7 @@ import { Article, LinkedInPost, MediumArticle } from './types';
 type SocialPlatform = 'LinkedIn' | 'Medium';
 type Region = 'Global' | 'India';
 
-const CATEGORIES = ['All', 'Models', 'Business', 'Hardware', 'Policy', 'Science'];
+const CATEGORIES = ['All', 'Politics', 'Geopolitics', 'Tech', 'AI', 'Sports', 'Business', 'Entertainment'];
 
 function App() {
   const [articles, setArticles] = useState<Article[]>([]);
@@ -116,7 +116,7 @@ function App() {
       </div>
 
       <header className="shrink-0 z-30 transition-all duration-300 w-full relative">
-        <div className="px-4 py-3 md:px-6 md:py-6 flex flex-col gap-3 md:gap-4">
+        <div className="px-4 py-3 md:px-8 md:py-4 flex flex-col gap-3 md:gap-4 max-w-7xl mx-auto">
             
             {/* Top Row: Logo, Region Toggle, Refresh */}
             <div className="flex items-center justify-between">
@@ -181,7 +181,7 @@ function App() {
       <main className="flex-grow w-full flex flex-col items-center justify-center relative z-10 px-4 overflow-hidden">
         {isLoading && (
           <div className="flex-grow flex items-center justify-center">
-             <LoadingState message={`Scanning ${region === 'India' ? 'Indian Sector' : 'Global Network'} for ${activeCategory}...`} />
+             <LoadingState message={`Scanning ${region === 'India' ? 'India' : 'Global'} wires for ${activeCategory}...`} />
           </div>
         )}
         
@@ -196,7 +196,11 @@ function App() {
         )}
 
         {!isLoading && !error && (
-          <div className="w-full max-w-md md:max-w-lg relative flex items-center justify-center transition-all duration-300 h-[calc(100dvh-12rem)] md:h-[650px] min-h-[450px]">
+          // Responsive Card Container:
+          // Mobile: Full height minus header (calc)
+          // Desktop (md): Dynamic 75% of viewport height (h-[75dvh]) or calc based to fill comfortably
+          // We use min-h to prevent squashing on small screens, max-h for ultra-wide.
+          <div className="w-full max-w-md md:max-w-2xl relative flex items-center justify-center transition-all duration-300 h-[calc(100dvh-11rem)] md:h-[calc(100dvh-10rem)] min-h-[500px] max-h-[900px]">
             {articles.length > 0 ? (
                articles.slice(0, 2).reverse().map((article, index) => {
                 const isTopCard = index === 1 || articles.length === 1;

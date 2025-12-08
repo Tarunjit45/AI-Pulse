@@ -1,11 +1,10 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { Article, LinkedInPost, MediumArticle } from '../types';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 /**
- * Generates a single summary article about the latest AI trends with Deep Analysis.
+ * Generates a single summary article about the latest trends with Deep Analysis.
  */
 export const generateSingleArticle = async (
   previousTitles: string[] = [], 
@@ -14,32 +13,33 @@ export const generateSingleArticle = async (
 ): Promise<Article> => {
   
   const regionInstruction = region === 'India' 
-    ? "FOCUS STRICTLY ON AI NEWS FROM INDIA. Look for updates from Indian startups (like Sarvam AI, Krutrim, Hanooman), Indian government policies (MeitY, AI Mission), or major AI deployments by Indian enterprises (Infosys, TCS, Reliance). If no major breaking Indian news exists today, find the most significant recent Indian AI story." 
-    : "Focus on major GLOBAL AI news.";
+    ? "FOCUS STRICTLY ON NEWS FROM INDIA. Look for updates on Indian politics, cricket/sports, economy, technology startups, or major local events. If no major breaking Indian news exists today, find the most significant recent Indian story." 
+    : "Focus on major GLOBAL news stories (US, Europe, Asia, etc).";
 
   const categoryInstruction = category !== 'All' 
-    ? `FOCUS STRICTLY ON THE CATEGORY: "${category}". Find news related to ${category} (e.g., if 'Policy', look for regulation/laws; if 'Hardware', look for chips/GPUs).` 
-    : "Select the most significant story across any category.";
+    ? `FOCUS STRICTLY ON THE CATEGORY: "${category}".` 
+    : "Select the most significant breaking news story across any category (Politics, War, Tech, Sports, etc).";
 
   const systemInstruction = `
-    You are AI Pulse, the world's most advanced AI trend analyst.
-    Your mission is not just to summarize, but to ANALYZE the significance of AI news.
+    You are Pulse, the world's most advanced AI News Analyst.
+    Your mission is not just to summarize, but to ANALYZE the significance of global events.
     
     FILTERS:
     1. Region: ${region} (${regionInstruction})
     2. Category: ${category} (${categoryInstruction})
 
     Workflow:
-    1.  Find a BREAKING or SIGNIFICANT AI news story from the last 24-48 hours fitting the filters. Avoid: ${JSON.stringify(previousTitles)}.
+    1.  Find a BREAKING or SIGNIFICANT news story from the last 24 hours fitting the filters. Avoid: ${JSON.stringify(previousTitles)}.
     2.  Summarize it concisely.
     3.  ANALYZE it:
-        - Determine a "Hype Score" (0 = Total Fluff, 100 = Earth Shattering).
+        - Determine a "Hype Score" (0 = Total Fluff, 100 = Historic/Viral).
         - Determine an "Impact Score" (0 = Niche, 100 = Global Change).
         - Predict the immediate future consequence.
-        - Pick one technical term from the story and define it simply (ELI5).
-    4.  Create a visual image description (max 5-7 words) for the story (e.g., "cyberpunk robot reading newspaper neon city").
+        - "technicalTerm": Select the most important person, organization, place, or concept in the story.
+        - "simpleDefinition": Explain who or what they are and why they are central to this story (Context).
+    4.  Create a visual image description (max 5-7 words) for the story (e.g., "crowded parliament debate dramatic lighting", "cricket stadium packed night match", "futuristic AI robot neon").
     5.  List sources.
-    6.  Assign a generic Category (e.g., 'Models', 'Business', 'Policy', 'Hardware', 'Science').
+    6.  Assign the Category.
 
     Output MUST be a raw JSON object (no markdown formatting) matching this structure:
     {
@@ -52,8 +52,8 @@ export const generateSingleArticle = async (
         "hypeScore": 50,
         "impactScore": 80,
         "prediction": "One sentence prediction of what happens next.",
-        "technicalTerm": "Transformer",
-        "simpleDefinition": "A type of neural network that learns context..."
+        "technicalTerm": "Key Entity/Term",
+        "simpleDefinition": "Contextual explanation..."
       }
     }
 
@@ -66,7 +66,7 @@ export const generateSingleArticle = async (
   
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash', 
-    contents: `Find the most important ${category} AI news story in ${region} right now and analyze it.`,
+    contents: `Find the most important ${category} news story in ${region} right now and analyze it.`,
     config: {
       systemInstruction,
       tools: [{ googleSearch: {} }],
@@ -85,10 +85,9 @@ export const generateSingleArticle = async (
     const rawData = JSON.parse(jsonText);
     
     // Construct a reliable generative image URL
-    // We add 'cinematic lighting, hyperrealistic, 8k' to ensure high quality aesthetics
-    // If region is India, we add visual context for that too
-    const regionContext = region === 'India' ? 'Indian context futuristic ' : '';
-    const encodedPrompt = encodeURIComponent(`${regionContext}${rawData.imagePrompt || rawData.title} cinematic tech futuristic`);
+    // We add 'cinematic, 4k' to ensure high quality aesthetics
+    // Use the raw image prompt from the AI for best variety
+    const encodedPrompt = encodeURIComponent(`${rawData.imagePrompt || rawData.title} cinematic photography 4k`);
     const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=576&nologo=true&seed=${Math.floor(Math.random() * 1000)}&model=flux`;
 
     const article: Article = {
@@ -123,7 +122,7 @@ export const generateSingleArticle = async (
  */
 export const chatWithArticle = async (article: Article, userMessage: string, history: {role: string, content: string}[]): Promise<string> => {
     const systemInstruction = `
-        You are an expert AI Analyst discussing a specific news article.
+        You are an expert News Analyst discussing a specific story.
         
         The Article:
         Title: ${article.title}
