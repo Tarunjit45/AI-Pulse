@@ -120,10 +120,37 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, isGenerating,
   const [style, setStyle] = useState<React.CSSProperties>({});
   const [swipeFeedback, setSwipeFeedback] = useState<'save' | 'skip' | null>(null);
   const [activeTab, setActiveTab] = useState<'story' | 'analysis' | 'chat'>('story');
-  const [imageError, setImageError] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  
+  // Image handling state
+  const [imgSrc, setImgSrc] = useState<string>(article.imageUrl);
+  const [imgLoading, setImgLoading] = useState<boolean>(true);
+  const [imgError, setImgError] = useState<boolean>(false);
 
-  useEffect(() => { setImageError(false); setActiveTab('story'); }, [article.imageUrl, article.title]);
+  useEffect(() => { 
+      // Reset state on new article
+      setImgSrc(article.imageUrl);
+      setImgLoading(true);
+      setImgError(false);
+      setActiveTab('story'); 
+  }, [article.imageUrl, article.title]);
+
+  const handleImageError = () => {
+      // If primary (AI) image fails, switch to fallback
+      if (imgSrc === article.imageUrl && article.fallbackImageUrl) {
+          console.log("AI Image failed, switching to fallback...");
+          setImgSrc(article.fallbackImageUrl);
+          // Keep loading true until fallback loads
+      } else {
+          // Both failed
+          setImgLoading(false);
+          setImgError(true);
+      }
+  };
+
+  const handleImageLoad = () => {
+      setImgLoading(false);
+  };
 
   const articleHtml = renderMarkdown(article.body);
   const SWIPE_THRESHOLD = 80;
@@ -214,11 +241,14 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, isGenerating,
       <div className="relative h-48 md:h-[35%] shrink-0 group overflow-hidden border-b border-white/5">
         <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-[#020617]/40 to-transparent z-10" />
         
-        {/* Category Badge */}
-        <div className="absolute top-3 left-3 md:top-4 md:left-4 z-20">
+        {/* Category Badge & Date */}
+        <div className="absolute top-3 left-3 md:top-4 md:left-4 z-20 flex gap-2">
             <span className="px-3 py-1.5 md:px-4 md:py-1.5 bg-black/60 backdrop-blur-xl border border-white/10 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-widest text-white shadow-xl flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-neon-cyan animate-pulse"></span>
                 {article.category || 'NEWS'}
+            </span>
+            <span className="px-3 py-1.5 md:px-4 md:py-1.5 bg-black/60 backdrop-blur-xl border border-white/10 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-widest text-gray-300 shadow-xl">
+                {article.date}
             </span>
         </div>
 
@@ -240,20 +270,36 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, isGenerating,
             )}
         </button>
 
-        {!imageError ? (
+        {/* Image Handling: Loading State, Actual Image, Error State */}
+        {imgLoading && !imgError && (
+             <div className="absolute inset-0 bg-gray-900 animate-pulse z-0 flex items-center justify-center">
+                 <div className="w-full h-full bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 animate-shimmer" style={{ backgroundSize: '200% 100%' }}></div>
+             </div>
+        )}
+
+        {!imgError ? (
           <img
-            src={article.imageUrl}
+            src={imgSrc}
             alt={article.title}
-            className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
-            onError={() => setImageError(true)}
+            loading="eager"
+            className={`w-full h-full object-cover transition-all duration-1000 group-hover:scale-110 ${imgLoading ? 'opacity-0' : 'opacity-100'}`}
+            onLoad={handleImageLoad}
+            onError={handleImageError}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gray-900 pattern-grid-lg">
-             <span className="text-gray-500 font-mono text-xs tracking-widest uppercase">Signal Lost</span>
+             <div className="text-center">
+                 <div className="w-12 h-12 mx-auto mb-2 text-gray-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                    </svg>
+                 </div>
+                 <span className="text-gray-500 font-mono text-xs tracking-widest uppercase">Visual Data Offline</span>
+             </div>
           </div>
         )}
         
-        <div className="absolute bottom-0 left-0 p-4 md:p-6 lg:p-8 z-20 w-full">
+        <div className="absolute bottom-0 left-0 p-4 md:p-6 lg:p-8 z-20 w-full pointer-events-none">
             <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold text-white leading-tight drop-shadow-xl line-clamp-2 shadow-black tracking-tight">{article.title}</h2>
         </div>
       </div>

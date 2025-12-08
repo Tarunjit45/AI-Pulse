@@ -4,6 +4,18 @@ import { Article, LinkedInPost, MediumArticle } from '../types';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+const FALLBACK_IMAGES: Record<string, string> = {
+  'Politics': 'https://images.unsplash.com/photo-1541872703-74c5963631df?auto=format&fit=crop&w=1024&q=80',
+  'Geopolitics': 'https://images.unsplash.com/photo-1529101091760-6149d4c87b77?auto=format&fit=crop&w=1024&q=80',
+  'Tech': 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1024&q=80',
+  'AI': 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=1024&q=80',
+  'Business': 'https://images.unsplash.com/photo-1611974765270-ca1258634369?auto=format&fit=crop&w=1024&q=80',
+  'Sports': 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=1024&q=80',
+  'Entertainment': 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1024&q=80',
+  'India': 'https://images.unsplash.com/photo-1532375810709-75b1da00537c?auto=format&fit=crop&w=1024&q=80',
+  'General': 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1024&q=80'
+};
+
 /**
  * Generates a single summary article about the latest trends with Deep Analysis.
  */
@@ -22,7 +34,7 @@ export const generateSingleArticle = async (
     : "Select the most significant breaking news story across any category (Politics, War, Tech, Sports, etc).";
 
   const systemInstruction = `
-    You are Pulse, the world's most advanced AI News Analyst.
+    You are Pulse, an Elite Global News Analyst.
     Your mission is not just to summarize, but to ANALYZE the significance of global events.
     
     FILTERS:
@@ -32,19 +44,21 @@ export const generateSingleArticle = async (
     Workflow:
     1.  Find a BREAKING or SIGNIFICANT news story from the last 24 hours fitting the filters. Avoid: ${JSON.stringify(previousTitles)}.
     2.  Summarize it concisely.
-    3.  ANALYZE it:
+    3.  EXTRACT the exact DATE when the event occurred from the search results (e.g., "October 27, 2025"). Do not default to today unless it happened today.
+    4.  ANALYZE it:
         - Determine a "Hype Score" (0 = Total Fluff, 100 = Historic/Viral).
         - Determine an "Impact Score" (0 = Niche, 100 = Global Change).
         - Predict the immediate future consequence.
         - "technicalTerm": Select the most important person, organization, place, or concept in the story.
         - "simpleDefinition": Explain who or what they are and why they are central to this story (Context).
-    4.  Create a visual image description (max 5-7 words) for the story (e.g., "crowded parliament debate dramatic lighting", "cricket stadium packed night match", "futuristic AI robot neon").
-    5.  List sources.
-    6.  Assign the Category.
+    5.  Create a visual image description (max 5-7 words) for the story (e.g., "crowded parliament debate dramatic lighting", "cricket stadium packed night match", "futuristic AI robot neon").
+    6.  List sources.
+    7.  Assign the Category.
 
     Output MUST be a raw JSON object (no markdown formatting) matching this structure:
     {
       "title": "Headline",
+      "date": "Month Day, Year", 
       "body": "2 paragraphs markdown summary.",
       "imagePrompt": "visual description for generative AI image",
       "sources": ["url1", "url2"],
@@ -94,14 +108,22 @@ export const generateSingleArticle = async (
     const rawData = JSON.parse(jsonText);
     
     // Construct a reliable generative image URL
-    // We add 'cinematic, 4k' to ensure high quality aesthetics
-    // Use the raw image prompt from the AI for best variety
-    const encodedPrompt = encodeURIComponent(`${rawData.imagePrompt || rawData.title} cinematic photography 4k`);
+    // Clean the prompt to remove any stray characters or newlines
+    const cleanPrompt = (rawData.imagePrompt || rawData.title).replace(/['"\n]/g, '').trim();
+    const encodedPrompt = encodeURIComponent(`${cleanPrompt} editorial news photography 4k`);
+    
     const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=576&nologo=true&seed=${Math.floor(Math.random() * 1000)}&model=flux`;
+
+    // Determine fallback image based on category
+    let fallbackCategory = rawData.category || category;
+    if (region === 'India' && !FALLBACK_IMAGES[fallbackCategory]) fallbackCategory = 'India';
+    const fallbackUrl = FALLBACK_IMAGES[fallbackCategory] || FALLBACK_IMAGES['General'];
 
     const article: Article = {
         ...rawData,
         imageUrl: imageUrl,
+        fallbackImageUrl: fallbackUrl,
+        date: rawData.date || new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
         sources: rawData.sources || [],
         category: rawData.category || category || 'General'
     };
@@ -135,6 +157,7 @@ export const chatWithArticle = async (article: Article, userMessage: string, his
         
         The Article:
         Title: ${article.title}
+        Date: ${article.date}
         Summary: ${article.body}
         Analysis: Hype ${article.analysis.hypeScore}/100, Impact ${article.analysis.impactScore}/100.
         Prediction: ${article.analysis.prediction}
