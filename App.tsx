@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { LogoIcon, RefreshIcon } from './components/icons';
 import { LoadingState } from './components/LoadingState';
@@ -106,7 +105,7 @@ function App() {
   const isIndia = region === 'India';
 
   return (
-    <div className="min-h-screen bg-void text-gray-100 flex flex-col overflow-hidden relative transition-colors duration-1000">
+    <div className="h-[100dvh] bg-void text-gray-100 flex flex-col overflow-hidden relative transition-colors duration-1000">
       
       {/* Dynamic Background */}
       <div className="fixed inset-0 z-0 pointer-events-none transition-colors duration-1000">
@@ -116,31 +115,31 @@ function App() {
         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay"></div>
       </div>
 
-      <header className="sticky top-0 z-30 transition-all duration-300">
-        <div className="px-4 py-4 md:px-6 md:py-6 flex flex-col gap-4">
+      <header className="shrink-0 z-30 transition-all duration-300 w-full relative">
+        <div className="px-4 py-3 md:px-6 md:py-6 flex flex-col gap-3 md:gap-4">
             
             {/* Top Row: Logo, Region Toggle, Refresh */}
             <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3 bg-glass-border backdrop-blur-md px-4 py-2 rounded-full border border-white/5 shadow-lg">
+                <div className="flex items-center space-x-2 md:space-x-3 bg-glass-border backdrop-blur-md px-3 py-1.5 md:px-4 md:py-2 rounded-full border border-white/5 shadow-lg">
                   <div className="relative">
-                    <LogoIcon className={`h-8 w-8 drop-shadow-[0_0_15px_rgba(255,255,255,0.4)] transition-colors duration-500 ${isIndia ? 'text-orange-400' : 'text-neon-cyan'}`} />
+                    <LogoIcon className={`h-6 w-6 md:h-8 md:w-8 drop-shadow-[0_0_15px_rgba(255,255,255,0.4)] transition-colors duration-500 ${isIndia ? 'text-orange-400' : 'text-neon-cyan'}`} />
                   </div>
                   <div>
-                    <h1 className="text-xl font-display font-bold tracking-tight text-white">AI <span className={`text-transparent bg-clip-text bg-gradient-to-r transition-all duration-500 ${isIndia ? 'from-orange-400 via-white to-green-400' : 'from-neon-cyan to-neon-pink'}`}>PULSE</span></h1>
+                    <h1 className="text-lg md:text-xl font-display font-bold tracking-tight text-white">AI <span className={`text-transparent bg-clip-text bg-gradient-to-r transition-all duration-500 ${isIndia ? 'from-orange-400 via-white to-green-400' : 'from-neon-cyan to-neon-pink'}`}>PULSE</span></h1>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 md:gap-3">
                     <div className="bg-glass-border backdrop-blur-md rounded-full p-1 flex border border-white/5">
                         <button 
                             onClick={() => setRegion('Global')}
-                            className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-300 ${region === 'Global' ? 'bg-neon-cyan/20 text-neon-cyan shadow-[0_0_10px_rgba(0,242,234,0.3)]' : 'text-gray-400 hover:text-white'}`}
+                            className={`px-3 py-1 md:px-4 md:py-1.5 rounded-full text-[10px] md:text-xs font-bold transition-all duration-300 ${region === 'Global' ? 'bg-neon-cyan/20 text-neon-cyan shadow-[0_0_10px_rgba(0,242,234,0.3)]' : 'text-gray-400 hover:text-white'}`}
                         >
                             GLOBAL
                         </button>
                         <button 
                             onClick={() => setRegion('India')}
-                            className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-300 ${region === 'India' ? 'bg-orange-500/20 text-orange-400 shadow-[0_0_10px_rgba(251,146,60,0.3)]' : 'text-gray-400 hover:text-white'}`}
+                            className={`px-3 py-1 md:px-4 md:py-1.5 rounded-full text-[10px] md:text-xs font-bold transition-all duration-300 ${region === 'India' ? 'bg-orange-500/20 text-orange-400 shadow-[0_0_10px_rgba(251,146,60,0.3)]' : 'text-gray-400 hover:text-white'}`}
                         >
                             INDIA
                         </button>
@@ -149,22 +148,22 @@ function App() {
                     {!isLoading && (
                         <button 
                             onClick={init} 
-                            className="group p-2.5 bg-glass-border hover:bg-white/10 rounded-full transition-all border border-white/5 hover:border-neon-cyan/50"
+                            className="group p-2 md:p-2.5 bg-glass-border hover:bg-white/10 rounded-full transition-all border border-white/5 hover:border-neon-cyan/50"
                             title="Refresh Feed"
                         >
-                            <RefreshIcon className="w-5 h-5 text-gray-300 group-hover:text-neon-cyan transition-colors" />
+                            <RefreshIcon className="w-4 h-4 md:w-5 md:h-5 text-gray-300 group-hover:text-neon-cyan transition-colors" />
                         </button>
                     )}
                 </div>
             </div>
 
             {/* Bottom Row: Categories */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar mask-gradient-x">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar mask-gradient-x w-full">
                 {CATEGORIES.map(cat => (
                     <button
                         key={cat}
                         onClick={() => setActiveCategory(cat)}
-                        className={`whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider border transition-all duration-300 ${
+                        className={`whitespace-nowrap px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-[10px] md:text-xs font-bold uppercase tracking-wider border transition-all duration-300 flex-shrink-0 ${
                             activeCategory === cat 
                             ? isIndia 
                                 ? 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.4)]' 
@@ -179,7 +178,7 @@ function App() {
         </div>
       </header>
       
-      <main className="flex-grow container mx-auto p-4 w-full flex flex-col items-center justify-center relative z-10">
+      <main className="flex-grow w-full flex flex-col items-center justify-center relative z-10 px-4 overflow-hidden">
         {isLoading && (
           <div className="flex-grow flex items-center justify-center">
              <LoadingState message={`Scanning ${region === 'India' ? 'Indian Sector' : 'Global Network'} for ${activeCategory}...`} />
@@ -197,7 +196,7 @@ function App() {
         )}
 
         {!isLoading && !error && (
-          <div className="w-full max-w-lg h-[680px] relative flex items-center justify-center">
+          <div className="w-full max-w-md md:max-w-lg relative flex items-center justify-center transition-all duration-300 h-[calc(100dvh-12rem)] md:h-[650px] min-h-[450px]">
             {articles.length > 0 ? (
                articles.slice(0, 2).reverse().map((article, index) => {
                 const isTopCard = index === 1 || articles.length === 1;
@@ -222,7 +221,10 @@ function App() {
         )}
       </main>
 
-      <Footer />
+      {/* Hidden footer on mobile to save space, or make it very small */}
+      <div className="hidden md:block">
+        <Footer />
+      </div>
 
       <Modal isOpen={isModalOpen} onClose={closeModal}>
         {isGeneratingPost && <LoadingState message={`Architecting ${modalPlatform} content...`} />}

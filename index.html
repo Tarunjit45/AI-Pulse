@@ -1,8 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="UTF-g" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#030712" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>AI Pulse</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts: Space Grotesk for Headings, DM Sans for Body -->
@@ -47,10 +50,11 @@
     <style>
       body {
         background-color: #030712;
+        overscroll-behavior-y: none; /* Prevent pull-to-refresh on mobile */
       }
       /* Custom Scrollbar */
       ::-webkit-scrollbar {
-        width: 6px;
+        width: 4px;
       }
       ::-webkit-scrollbar-track {
         background: rgba(255,255,255,0.02);
@@ -61,6 +65,14 @@
       }
       ::-webkit-scrollbar-thumb:hover {
         background: rgba(255,255,255,0.2);
+      }
+      /* Hide scrollbar for category list but keep functionality */
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
       }
     </style>
     <script type="importmap">
