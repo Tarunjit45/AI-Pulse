@@ -1,12 +1,12 @@
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, memo } from 'react';
 import { Article } from '../types';
 import { LinkedInIcon, MediumIcon, ShareIcon } from './icons';
 import { chatWithArticle } from '../services/geminiService';
 
 // -- Visual Components --
 
-const ScoreBar = ({ label, score, colorClass }: { label: string; score: number; colorClass: string }) => (
+const ScoreBar = memo(({ label, score, colorClass }: { label: string; score: number; colorClass: string }) => (
   <div className="mb-4 md:mb-5 group">
     <div className="flex justify-between text-xs md:text-sm font-bold uppercase tracking-widest text-gray-400 mb-1.5 md:mb-2 group-hover:text-white transition-colors">
       <span>{label}</span>
@@ -20,7 +20,7 @@ const ScoreBar = ({ label, score, colorClass }: { label: string; score: number; 
         />
     </div>
   </div>
-);
+));
 
 const ChatInterface = ({ article }: { article: Article }) => {
     const [input, setInput] = useState('');
@@ -113,7 +113,7 @@ interface ArticleCardProps {
   isTopCard: boolean;
 }
 
-export const ArticleCard: React.FC<ArticleCardProps> = ({ article, isGenerating, onGenerate, onSwipe, isTopCard }) => {
+export const ArticleCard = memo<ArticleCardProps>(({ article, isGenerating, onGenerate, onSwipe, isTopCard }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const dragStartPos = useRef<{ x: number } | null>(null);
@@ -138,7 +138,6 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, isGenerating,
   const handleImageError = () => {
       // If primary (AI) image fails, switch to fallback
       if (imgSrc === article.imageUrl && article.fallbackImageUrl) {
-          console.log("AI Image failed, switching to fallback...");
           setImgSrc(article.fallbackImageUrl);
           // Keep loading true until fallback loads
       } else {
@@ -407,4 +406,4 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, isGenerating,
       </div>
     </div>
   );
-};
+});

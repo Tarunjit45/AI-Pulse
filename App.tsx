@@ -1,12 +1,14 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+
+import React, { useState } from 'react';
 import { LogoIcon, RefreshIcon } from './components/icons';
 import { LoadingState } from './components/LoadingState';
 import { ArticleCard } from './components/ArticleCard';
 import { Modal } from './components/Modal';
 import { PostCard } from './components/PostCard';
 import { Footer } from './components/Footer';
-import { generateSingleArticle, generateSocialPost } from './services/geminiService';
-import { Article, LinkedInPost, MediumArticle } from './types';
+import { generateSocialPost } from './services/geminiService';
+import { LinkedInPost, MediumArticle } from './types';
+import { useNewsFeed } from './hooks/useNewsFeed';
 
 type SocialPlatform = 'LinkedIn' | 'Medium';
 type Region = 'Global' | 'India';
@@ -14,64 +16,16 @@ type Region = 'Global' | 'India';
 const CATEGORIES = ['All', 'Politics', 'Geopolitics', 'Tech', 'AI', 'Sports', 'Business', 'Entertainment'];
 
 function App() {
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-
   const [region, setRegion] = useState<Region>('Global');
   const [activeCategory, setActiveCategory] = useState<string>('All');
+
+  // Architecture Upgrade: Moved state logic to custom hook
+  const { articles, isLoading, error, handleSwipe, retry } = useNewsFeed(region, activeCategory);
 
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [isGeneratingPost, setIsGeneratingPost] = useState<boolean>(false);
   const [generatedPost, setGeneratedPost] = useState<LinkedInPost | MediumArticle | null>(null);
   const [modalPlatform, setModalPlatform] = useState<SocialPlatform | null>(null);
-  
-  // Ref to track if initial load is done to prevent double firing in strict mode
-  const initRef = useRef(false);
-
-  const fetchArticle = useCallback(async () => {
-    try {
-      const existingTitles = articles.map(a => a.title);
-      const articleContent = await generateSingleArticle(existingTitles, region, activeCategory);
-      setArticles(prev => [...prev, articleContent]);
-    } catch (err) {
-      console.error(err);
-      if(articles.length < 2) {
-         setError(err instanceof Error ? err.message : 'An unknown error occurred while fetching news.');
-      }
-    }
-  }, [articles, region, activeCategory]);
-
-  const init = async () => {
-      setIsLoading(true);
-      setError(null);
-      setArticles([]);
-      try {
-        const firstArticle = await generateSingleArticle([], region, activeCategory);
-        setArticles([firstArticle]);
-        setIsLoading(false);
-        // Background fetch next
-        generateSingleArticle([firstArticle.title], region, activeCategory)
-          .then(secondArticle => setArticles(prev => [...prev, secondArticle]))
-          .catch(console.error);
-      } catch(err) {
-        setError(err instanceof Error ? err.message : 'Connection to Pulse Network failed.');
-        setIsLoading(false);
-      }
-  };
-
-  useEffect(() => {
-    init();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [region, activeCategory]);
-
-  const handleSwipe = useCallback(() => {
-    setArticles(prev => {
-        const next = prev.slice(1);
-        if (next.length < 2) fetchArticle(); // Pre-fetch when running low
-        return next;
-    });
-  }, [fetchArticle]);
 
   const handleGeneratePost = async (articleContent: string, platform: SocialPlatform) => {
     setModalPlatform(platform);
@@ -147,7 +101,7 @@ function App() {
 
                     {!isLoading && (
                         <button 
-                            onClick={init} 
+                            onClick={retry} 
                             className="group p-2 md:p-2.5 bg-glass-border hover:bg-white/10 rounded-full transition-all border border-white/5 hover:border-neon-cyan/50"
                             title="Refresh Feed"
                         >
@@ -190,7 +144,7 @@ function App() {
             <div className="bg-red-950/20 border border-red-500/30 text-red-200 p-8 rounded-3xl text-center max-w-lg backdrop-blur-xl shadow-2xl shadow-red-900/10">
               <h3 className="font-display font-bold text-2xl mb-3 text-red-400">Signal Interrupted</h3>
               <p className="text-gray-400 mb-6">{error}</p>
-              <button onClick={init} className="px-6 py-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/50 rounded-xl text-sm font-bold text-red-400 transition-all">Retry Uplink</button>
+              <button onClick={retry} className="px-6 py-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/50 rounded-xl text-sm font-bold text-red-400 transition-all">Retry Uplink</button>
             </div>
           </div>
         )}

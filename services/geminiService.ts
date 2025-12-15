@@ -1,8 +1,6 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { Article, LinkedInPost, MediumArticle } from '../types';
-
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+import { withRetry } from './retryUtils';
 
 const FALLBACK_IMAGES: Record<string, string> = {
   'Politics': 'https://images.unsplash.com/photo-1541872703-74c5963631df?auto=format&fit=crop&w=1024&q=80',
@@ -17,15 +15,10 @@ const FALLBACK_IMAGES: Record<string, string> = {
 };
 
 /**
- * Generates a single summary article about the latest trends with Deep Analysis.
+ * Core function to call API - Wrapped in retry logic elsewhere
  */
-export const generateSingleArticle = async (
-  previousTitles: string[] = [], 
-  region: 'Global' | 'India' = 'Global',
-  category: string = 'All'
-): Promise<Article> => {
-  
-  const regionInstruction = region === 'India' 
+const fetchArticleFromApi = async (previousTitles: string[], region: string, category: string): Promise<Article> => {
+    const regionInstruction = region === 'India' 
     ? "FOCUS STRICTLY ON NEWS FROM INDIA. Look for updates on Indian politics, cricket/sports, economy, technology startups, or major local events. If no major breaking Indian news exists today, find the most significant recent Indian story." 
     : "Focus on major GLOBAL news stories (US, Europe, Asia, etc).";
 
@@ -42,7 +35,7 @@ export const generateSingleArticle = async (
     2. Category: ${category} (${categoryInstruction})
 
     Workflow:
-    1.  Find a BREAKING or SIGNIFICANT news story from the last 24 hours fitting the filters. Avoid: ${JSON.stringify(previousTitles)}.
+    1.  Find a BREAKING or SIGNIFICANT news story from the last 24 hours fitting the filters. Avoid these titles if possible: ${JSON.stringify(previousTitles)}.
     2.  Summarize it concisely.
     3.  EXTRACT the exact DATE when the event occurred from the search results (e.g., "October 27, 2025"). Do not default to today unless it happened today.
     4.  ANALYZE it:
@@ -79,6 +72,7 @@ export const generateSingleArticle = async (
     4. Escape all newlines in strings as \\n.
   `;
   
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash', 
     contents: `Find the most important ${category} news story in ${region} right now and analyze it.`,
@@ -89,7 +83,8 @@ export const generateSingleArticle = async (
     },
   });
 
-  let jsonText = response.text.trim();
+  // Fix: Handle potential undefined text response
+  let jsonText = response.text ? response.text.trim() : '';
   
   // Clean markdown code blocks if present
   if (jsonText.startsWith('```')) {
@@ -104,48 +99,65 @@ export const generateSingleArticle = async (
     jsonText = jsonText.substring(startIndex, endIndex + 1);
   }
 
+  let rawData;
   try {
-    const rawData = JSON.parse(jsonText);
-    
-    // Construct a reliable generative image URL
-    // Clean the prompt to remove any stray characters or newlines
-    const cleanPrompt = (rawData.imagePrompt || rawData.title).replace(/['"\n]/g, '').trim();
-    const encodedPrompt = encodeURIComponent(`${cleanPrompt} editorial news photography 4k`);
-    
-    const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=576&nologo=true&seed=${Math.floor(Math.random() * 1000)}&model=flux`;
-
-    // Determine fallback image based on category
-    let fallbackCategory = rawData.category || category;
-    if (region === 'India' && !FALLBACK_IMAGES[fallbackCategory]) fallbackCategory = 'India';
-    const fallbackUrl = FALLBACK_IMAGES[fallbackCategory] || FALLBACK_IMAGES['General'];
-
-    const article: Article = {
-        ...rawData,
-        imageUrl: imageUrl,
-        fallbackImageUrl: fallbackUrl,
-        date: rawData.date || new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-        sources: rawData.sources || [],
-        category: rawData.category || category || 'General'
-    };
-    
-    // Extract grounding chunks
-    const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
-    if (groundingChunks) {
-      const groundingUrls = groundingChunks
-        .map((chunk: any) => chunk.web?.uri)
-        .filter((uri: string | undefined): uri is string => !!uri);
-        
-      if (groundingUrls.length > 0) {
-        article.sources = Array.from(new Set([...(article.sources || []), ...groundingUrls]));
-      }
-    }
-    
-    return article;
+    rawData = JSON.parse(jsonText);
   } catch (e) {
-    console.error("Failed to parse article JSON:", jsonText);
-    // Fallback logic
-    throw new Error(`The AI returned an invalid format for the article feed.`);
+    throw new Error("Failed to parse AI response");
   }
+  
+  // Validate critical fields to prevent "Empty Card" crashes
+  if (!rawData || !rawData.title || !rawData.body) {
+      throw new Error("Received incomplete data from AI analyst.");
+  }
+
+  // Construct a reliable generative image URL
+  // Clean the prompt to remove any stray characters or newlines
+  const cleanPrompt = (rawData.imagePrompt || rawData.title).replace(/['"\n]/g, '').trim();
+  const encodedPrompt = encodeURIComponent(`${cleanPrompt} editorial news photography 4k`);
+  
+  // Use a random seed to prevent caching issues
+  const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=576&nologo=true&seed=${Math.floor(Math.random() * 1000)}&model=flux`;
+
+  // Determine fallback image based on category
+  let fallbackCategory = rawData.category || category;
+  if (region === 'India' && !FALLBACK_IMAGES[fallbackCategory]) fallbackCategory = 'India';
+  const fallbackUrl = FALLBACK_IMAGES[fallbackCategory] || FALLBACK_IMAGES['General'];
+
+  const article: Article = {
+      ...rawData,
+      imageUrl: imageUrl,
+      fallbackImageUrl: fallbackUrl,
+      date: rawData.date || new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+      sources: rawData.sources || [],
+      category: rawData.category || category || 'General'
+  };
+  
+  // Extract grounding chunks for citations
+  const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
+  if (groundingChunks) {
+    const groundingUrls = groundingChunks
+      .map((chunk: any) => chunk.web?.uri)
+      .filter((uri: string | undefined): uri is string => !!uri);
+      
+    if (groundingUrls.length > 0) {
+      article.sources = Array.from(new Set([...(article.sources || []), ...groundingUrls]));
+    }
+  }
+  
+  return article;
+}
+
+/**
+ * Generates a single summary article about the latest trends with Deep Analysis.
+ * Uses retry logic to handle API instability.
+ */
+export const generateSingleArticle = async (
+  previousTitles: string[] = [], 
+  region: 'Global' | 'India' = 'Global',
+  category: string = 'All'
+): Promise<Article> => {
+    return withRetry(() => fetchArticleFromApi(previousTitles, region, category), 2);
 };
 
 /**
@@ -174,13 +186,16 @@ export const chatWithArticle = async (article: Article, userMessage: string, his
         Model:
     `;
 
-    const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: { systemInstruction }
+    return withRetry(async () => {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: { systemInstruction }
+        });
+        // Fix: Handle undefined text response
+        return response.text || '';
     });
-
-    return response.text;
 }
 
 /**
@@ -222,22 +237,21 @@ export const generateSocialPost = async (
     Generate the ${platform} post.
   `;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: prompt,
-    config: {
-      systemInstruction,
-      responseMimeType: 'application/json',
-      responseSchema: isLinkedIn ? LINKEDIN_SCHEMA : MEDIUM_SCHEMA,
-    },
-  });
-  
-  const jsonText = response.text.trim();
-  
-  try {
-    return JSON.parse(jsonText);
-  } catch (e) {
-    console.error("Failed to parse social post JSON:", jsonText);
-    throw new Error(`The AI returned an invalid format for the ${platform} post.`);
-  }
+  return withRetry(async () => {
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          systemInstruction,
+          responseMimeType: 'application/json',
+          responseSchema: isLinkedIn ? LINKEDIN_SCHEMA : MEDIUM_SCHEMA,
+        },
+      });
+      
+      // Fix: Handle undefined text response
+      const jsonText = response.text ? response.text.trim() : '';
+      if (!jsonText) throw new Error("Empty response from AI");
+      return JSON.parse(jsonText);
+  }, 1);
 };
