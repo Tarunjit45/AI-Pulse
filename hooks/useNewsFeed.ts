@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Article } from '../types';
 import { generateSingleArticle } from '../services/geminiService';
@@ -55,10 +56,8 @@ export const useNewsFeed = (region: 'Global' | 'India', category: string) => {
         setError(null);
         
         const init = async () => {
-             // Fetch first article
+             // Fetch ONLY first article to save API quota
              await fetchNextArticle(true);
-             // Pre-fetch second article immediately in background for smooth start
-             fetchNextArticle(false);
         };
 
         init();
@@ -69,10 +68,9 @@ export const useNewsFeed = (region: 'Global' | 'India', category: string) => {
     const handleSwipe = useCallback(() => {
         setArticles(prev => {
             const next = prev.slice(1);
-            // Smart Buffer: If we drop below 3 articles, fetch more
-            if (next.length < 3) {
-                // We use setTimeout to push this to the end of the event loop
-                // ensuring the UI updates first
+            // Smart Buffer: If we drop below 2 articles, fetch ONE more
+            // Reduced buffer size to save quota
+            if (next.length < 2) {
                 setTimeout(() => fetchNextArticle(false), 100);
             }
             return next;

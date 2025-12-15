@@ -1,6 +1,8 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { Article, LinkedInPost, MediumArticle } from '../types';
 import { withRetry } from './retryUtils';
+import { getRandomMockArticle } from '../data/mock-articles';
 
 const FALLBACK_IMAGES: Record<string, string> = {
   'Politics': 'https://images.unsplash.com/photo-1541872703-74c5963631df?auto=format&fit=crop&w=1024&q=80',
@@ -12,6 +14,17 @@ const FALLBACK_IMAGES: Record<string, string> = {
   'Entertainment': 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1024&q=80',
   'India': 'https://images.unsplash.com/photo-1532375810709-75b1da00537c?auto=format&fit=crop&w=1024&q=80',
   'General': 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1024&q=80'
+};
+
+/**
+ * Helper to initialize AI client and validate API Key.
+ * Throws a clear error if the key is missing from Vercel env vars.
+ */
+const getAIClient = () => {
+  if (!process.env.API_KEY) {
+    throw new Error("Missing API Key. Please add 'API_KEY' to your Vercel Environment Variables and redeploy.");
+  }
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
 /**
@@ -72,7 +85,7 @@ const fetchArticleFromApi = async (previousTitles: string[], region: string, cat
     4. Escape all newlines in strings as \\n.
   `;
   
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = getAIClient();
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash', 
     contents: `Find the most important ${category} news story in ${region} right now and analyze it.`,
@@ -150,14 +163,30 @@ const fetchArticleFromApi = async (previousTitles: string[], region: string, cat
 
 /**
  * Generates a single summary article about the latest trends with Deep Analysis.
- * Uses retry logic to handle API instability.
+ * Uses retry logic, but catches Resource Exhausted errors to serve mock data.
  */
 export const generateSingleArticle = async (
   previousTitles: string[] = [], 
   region: 'Global' | 'India' = 'Global',
   category: string = 'All'
 ): Promise<Article> => {
-    return withRetry(() => fetchArticleFromApi(previousTitles, region, category), 2);
+    try {
+        // Decreased retries to 1 to avoid hammering a limited quota
+        return await withRetry(() => fetchArticleFromApi(previousTitles, region, category), 1);
+    } catch (error: any) {
+        // Detect 429 Resource Exhausted or generic Quota errors
+        const isQuotaError = 
+            error.message?.includes('429') || 
+            error.message?.includes('Quota') || 
+            error.message?.includes('RESOURCE_EXHAUSTED') ||
+            error.status === 429;
+            
+        if (isQuotaError) {
+            console.warn("API Quota Exceeded. Switching to Backup Data Layer.");
+            return getRandomMockArticle(category);
+        }
+        throw error;
+    }
 };
 
 /**
@@ -187,15 +216,22 @@ export const chatWithArticle = async (article: Article, userMessage: string, his
     `;
 
     return withRetry(async () => {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: { systemInstruction }
-        });
-        // Fix: Handle undefined text response
-        return response.text || '';
-    });
+        try {
+            const ai = getAIClient();
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+                config: { systemInstruction }
+            });
+            // Fix: Handle undefined text response
+            return response.text || '';
+        } catch (error: any) {
+             if (error.message?.includes('429') || error.status === 429) {
+                 return "I'm currently offline due to high traffic (Quota Exceeded). Please try again tomorrow.";
+             }
+             throw error;
+        }
+    }, 1);
 }
 
 /**
@@ -238,7 +274,7 @@ export const generateSocialPost = async (
   `;
 
   return withRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = getAIClient();
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
