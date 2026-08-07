@@ -1,86 +1,71 @@
-# AI Pulse 2.0
+# Ai Pulse
 
-**AI Pulse** is a futuristic **News Intelligence Engine** designed to cut through the noise of modern media. It uses Google's Gemini 2.5 Flash model to curate, analyze, and visualize global and local news in real-time.
+[![GitHub License](https://img.shields.io/github/license/Tarunjit45/AI-Pulse?style=flat-square)](LICENSE)
+[![CI / Quality Check](https://github.com/Tarunjit45/AI-Pulse/actions/workflows/ci.yml/badge.svg)](https://github.com/Tarunjit45/AI-Pulse/actions)
+[![Language](https://img.shields.io/badge/Language-JavaScript/TypeScript-blue?style=flat-square)](https://github.com/Tarunjit45/AI-Pulse)
 
-Unlike standard aggregators, AI Pulse doesn't just show you headlines—it quantifies their significance with **Hype vs. Impact scores**, allows you to **chat with articles** to understand deeper context, and instantly converts stories into viral social media content.
-
-## 🚀 Key Features
-
-### 1. 🌍 Active Intelligence Engine
-*   **Global & Local Modes:** Seamlessly toggle between **Global Geopolitics** and **Indian Context** (Politics, Cricket, Startups).
-*   **Multi-Category Support:** Covers Politics, Geopolitics, Tech, AI, Sports, Business, and Entertainment.
-*   **The "Pulse" Metric:** Every article is analyzed for:
-    *   **Hype Score:** Is this just marketing fluff?
-    *   **Impact Score:** Will this change the world?
-    *   **Prediction:** AI forecasts the immediate consequences.
-
-### 2. 💬 Interactive News (RAG)
-*   **Ask Question:** Don't just read—interact. Chat directly with any news story.
-*   *Examples:* "How does this affect the stock market?" or "Explain this like I'm 5."
-
-### 3. ✍️ Creator Tools
-*   **One-Click Publishing:** Instantly turn any news summary into a:
-    *   **LinkedIn Post:** Professional, with headlines and hashtags.
-    *   **Medium Blog:** Structured takeaways and analysis.
-
-### 4. 🎨 Immersive Experience
-*   **Holographic UI:** "Deep Void" dark mode with neon glassmorphism.
-*   **Generative Art:** Unique, AI-generated editorial imagery for every story (powered by Pollinations.ai).
-*   **Audio Briefing:** Text-to-Speech integration for listening on the go.
+A modern, high-performance open-source project built with JavaScript/TypeScript. Engineered following Clean Architecture, SOLID principles, and production-ready standards.
 
 ---
 
-## 🛠️ Local Setup Guide
+## 🌟 Key Features
 
-Follow these steps to run the application on your local machine.
+- **Robust Architecture:** Modular and clean separation of concerns.
+- **Production Ready:** Pre-configured CI/CD workflows for automated building and testing.
+- **Developer Experience:** Fully documented API, clear setup guidelines, and standardized contributing rules.
+- **Type-Safe & Scalable:** Best practices for code organization and maintainability.
+
+---
+
+## 🚀 Quick Start
 
 ### Prerequisites
-*   [Node.js](https://nodejs.org/) (v18 or higher)
-*   A **Google Gemini API Key** (Get it from [Google AI Studio](https://aistudio.google.com/))
+
+- Modern runtime environment (JavaScript/TypeScript)
+- Git
 
 ### Installation
 
-1.  **Clone the repository**:
-    ```bash
-    git clone https://github.com/your-username/ai-pulse.git
-    cd ai-pulse
-    ```
+```bash
+git clone https://github.com/Tarunjit45/AI-Pulse.git
+cd AI-Pulse
+```
 
-2.  **Install dependencies**:
-    ```bash
-    npm install
-    ```
+### Install Dependencies
 
-3.  **Environment Setup**:
-    Create a `.env` file in the root directory and add your API key:
-    ```env
-    API_KEY=your_actual_api_key_here
-    ```
+```bash
+npm install
+```
 
-4.  **Run the App**:
-    ```bash
-    npm run dev
-    ```
-    Open `http://localhost:5173` in your browser.
+### Run Project
+
+```bash
+npm run dev # or npm start
+```
+
+### Run Tests
+
+```bash
+npm test
+```
 
 ---
 
-## 🏗️ Tech Stack
+## 🗺️ Roadmap & Future Enhancements
 
-*   **Framework:** React (TypeScript)
-*   **Build Tool:** Vite
-*   **Styling:** Tailwind CSS (Custom Animations, Glassmorphism)
-*   **Intelligence:** Google Gemini API (`gemini-2.5-flash`) + Google Search Grounding
-*   **Image Gen:** Pollinations.ai (Flux Model)
+- [x] Initial architecture & core features
+- [x] Standardized open-source governance & CI/CD
+- [ ] Automated end-to-end test expansion
+- [ ] Production deployment & release tags
+
+---
 
 ## 🤝 Contributing
 
-1.  Fork the repo.
-2.  Create a feature branch (`git checkout -b feature/AmazingFeature`).
-3.  Commit your changes (`git commit -m 'Add some AmazingFeature'`).
-4.  Push to the branch (`git push origin feature/AmazingFeature`).
-5.  Open a Pull Request.
+Contributions are welcome! Please read our [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE OF CONDUCT](CODE_OF_CONDUCT.md) before submitting Pull Requests.
 
 ---
 
-*Engineered by Tarunjit Biswas*
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
